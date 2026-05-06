@@ -1,0 +1,279 @@
+.smart-upload-page {
+  padding: 40px 24px;
+}
+
+.page-header {
+  margin-bottom: 40px;
+  max-width: 600px;
+}
+
+.page-title {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.page-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.upload-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.upload-visual {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.image-analysis-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3.5;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: #f0f0f0;
+}
+
+.analyzed-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bounding-box {
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  width: 60%;
+  height: 70%;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+}
+
+.bounding-box-header {
+  position: absolute;
+  top: -30px;
+  left: -2px;
+  background-color: var(--primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 4px 4px 4px 0;
+  display: flex;
+  gap: 24px;
+  white-space: nowrap;
+}
+
+.scan-line {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: rgba(0, 143, 93, 0.5);
+  box-shadow: 0 0 20px 4px rgba(0, 143, 93, 0.4);
+  /* Optional animation */
+  /* animation: scan 3s infinite linear; */
+}
+
+.retake-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: white;
+  border-radius: 100px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.status-badge {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.text-xs {
+  font-size: 10px;
+}
+
+.tracking-wide {
+  letter-spacing: 0.5px;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.analysis-results-row {
+  display: flex;
+  gap: 16px;
+}
+
+.result-card {
+  flex: 1;
+  background: #f3f4f6;
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.result-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Form Styles */
+.upload-form {
+  width: 400px;
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.form-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle {
+  width: 36px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-main);
+  outline: none;
+}
+
+.bg-gray {
+  background-color: #f3f4f6;
+}
+
+.ai-specs-card {
+  background-color: #f0fdf4;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.specs-title {
+  font-size: 10px;
+  color: var(--primary);
+  font-weight: 700;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.spec-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.publish-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.text-center {
+  text-align: center;
+}

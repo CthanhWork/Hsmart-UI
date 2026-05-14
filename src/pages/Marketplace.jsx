@@ -8,40 +8,13 @@ const Marketplace = () => {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fallback mock data
-  const mockListings = [
-    {
-      id: 'm1',
-      imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=600&q=80',
-      title: 'SmartAir 5000...',
-      price: 849,
-      location: 'Released 2023 • 1.2kW',
-      isVerified: true,
-      tags: []
-    },
-    {
-      id: 'm2',
-      imageUrl: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=600&q=80',
-      title: 'FrostGuard Pro...',
-      price: 1299,
-      location: 'Released 2024 • A++ Rating',
-      isVerified: true,
-      tags: []
-    }
-  ];
-
   useEffect(() => {
     const fetchListings = async () => {
       try {
         const data = await apiFetchProducts();
-        if (data && data.length > 0) {
-          setListings(data);
-        } else {
-          setListings(mockListings);
-        }
+        setListings(data || []);
       } catch (err) {
         console.error('Failed to fetch from API', err);
-        setListings(mockListings);
       } finally {
         setLoading(false);
       }

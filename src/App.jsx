@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import Marketplace from './pages/Marketplace';
 import SmartUpload from './pages/SmartUpload';
 import MyHub from './pages/MyHub';
+import ProductDetail from './pages/ProductDetail';
+import AssistantWidget from './components/Chat/AssistantWidget';
 
 function App() {
   return (
@@ -15,10 +17,12 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/sell" element={<SmartUpload />} />
             <Route path="/myhub" element={<MyHub />} />
           </Routes>
         </main>
+        <AssistantWidget />
         <Footer />
       </div>
     </Router>

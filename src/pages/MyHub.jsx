@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Sparkles, User, Package } from 'lucide-react';
-import { useUser } from '../../context/UserContext';
-import { apiFetchProducts, apiFetchNotifications } from '../../services/api';
+import { useUser } from '../context/UserContext';
+import { apiFetchProducts, apiFetchNotifications } from '../services/api';
 import './MyHub.css';
 
 const MyHub = () => {

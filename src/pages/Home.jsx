@@ -1,164 +1,125 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Refrigerator, WashingMachine, Microwave, Coffee, ChevronDown } from 'lucide-react';
+import { apiFetchProducts, apiFetchCategories } from '../services/api';
 import ProductCard from '../components/common/ProductCard';
-import { apiFetchProducts } from '../services/api';
 import './Home.css';
+import { ChevronRight } from 'lucide-react';
 
 const Home = () => {
-  const [listings, setListings] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fallback mock data in case API is unavailable or empty
-  const mockListings = [
-    {
-      id: 'm1',
-      imageUrl: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=600&q=80',
-      title: 'Samsung FamilyHub...',
-      price: 1249,
-      location: 'Brooklyn, NY',
-      isVerified: true,
-      tags: ['2022 MODEL', 'FREE DELIVERY']
-    },
-    {
-      id: 'm2',
-      imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=600&q=80',
-      title: 'LG ThinQ Front Load...',
-      price: 580,
-      location: 'Austin, TX',
-      isVerified: true,
-      tags: ['ENERGY STAR', 'SILENT DRIVE']
-    }
-  ];
-
   useEffect(() => {
-    const fetchListings = async () => {
+    const fetchLatest = async () => {
       try {
-        const data = await apiFetchProducts();
-        if (data && data.length > 0) {
-          setListings(data);
-        } else {
-          // If API returns empty, show mock data for demonstration
-          setListings(mockListings);
-        }
+        setLoading(true);
+        const [prodData, catData] = await Promise.all([
+          apiFetchProducts(),
+          apiFetchCategories()
+        ]);
+        setProducts(prodData || []);
+        setCategories(catData || []);
       } catch (err) {
-        console.error('Failed to fetch from API, using mock data.', err);
-        setListings(mockListings);
+        console.error('Home fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchListings();
+    fetchLatest();
   }, []);
 
   return (
-    <div className="home-page">
-      {/* Hero Section */}
-      <section className="hero-section container">
-        <div className="hero-content">
-          <h4 className="hero-subtitle">FUTURE OF RESALE</h4>
-          <h1 className="hero-title">
-            Precision-certified<br/>
-            <span className="text-primary">household tech.</span>
-          </h1>
-          <p className="hero-desc">
-            Every appliance on H-smart is scanned by our proprietary AI to verify condition, specifications, and authenticity. No surprises, just quality.
-          </p>
-          <div className="hero-actions">
-            <button className="btn btn-primary">Browse Certified</button>
-            <button className="btn btn-secondary">How it works</button>
+    <div className="ecommerce-home">
+      <div className="top-background"></div>
+
+      <div className="home-container">
+        {/* Banner Section */}
+        <section className="banner-section">
+          <div className="banner-main">
+            <img src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&h=480&q=80" alt="Main Banner" className="banner-img" />
           </div>
-        </div>
-        <div className="hero-visual">
-          <div className="hero-image-wrapper">
-            <img 
-              src="https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80" 
-              alt="Premium Refrigerator" 
-              className="hero-image"
-            />
-            <div className="hero-ai-card">
-              <div className="ai-card-header">
-                <div className="ai-icon-bg">
-                  <Sparkles size={14} color="var(--primary)" />
+          <div className="banner-side">
+            <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&h=230&q=80" alt="Side Banner 1" className="banner-img" />
+            <img src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&h=230&q=80" alt="Side Banner 2" className="banner-img" />
+          </div>
+        </section>
+
+        {/* Categories Section */}
+        <section className="categories-section">
+          <div className="section-header">
+            <h3>DANH MỤC</h3>
+          </div>
+          <div className="categories-grid">
+            {categories.map((cat, idx) => (
+              <div key={idx} className="category-item">
+                <div className="category-img-wrapper">
+                  <img src={cat.img} alt={cat.name} />
                 </div>
-                <span>AI INTEGRITY SCAN</span>
+                <span className="category-name">{cat.name}</span>
               </div>
-              <div className="ai-card-footer">
-                <span className="text-muted">Condition Grade</span>
-                <span className="text-success font-bold">A+ (Pristine)</span>
-              </div>
-              <div className="ai-progress-bar">
-                <div className="ai-progress-fill"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="categories-section container">
-        <h3 className="section-title">Shop by category</h3>
-        <div className="categories-grid">
-          <div className="category-card">
-            <Refrigerator size={24} strokeWidth={1.5} />
-            <span>Refrigerators</span>
-          </div>
-          <div className="category-card">
-            <WashingMachine size={24} strokeWidth={1.5} />
-            <span>Washers</span>
-          </div>
-          <div className="category-card">
-            <Microwave size={24} strokeWidth={1.5} />
-            <span>Microwaves</span>
-          </div>
-          <div className="category-card">
-            <Refrigerator size={24} strokeWidth={1.5} />
-            <span>Ovens</span>
-          </div>
-          <div className="category-card">
-            <Coffee size={24} strokeWidth={1.5} />
-            <span>Coffee Tech</span>
-          </div>
-          <div className="category-card">
-            <WashingMachine size={24} strokeWidth={1.5} />
-            <span>Dishwashers</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Latest Listings */}
-      <section className="listings-section container">
-        <div className="section-header">
-          <h3 className="section-title no-border">Latest Verified Listings</h3>
-          <div className="header-actions">
-            <button className="filter-btn">FILTER</button>
-            <button className="filter-btn">SORT</button>
-          </div>
-        </div>
-        
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Loading intelligent data...</div>
-        ) : (
-          <div className="product-grid">
-            {listings.map(item => (
-              <ProductCard 
-                key={item.id} 
-                image={item.imageUrl}
-                title={item.title}
-                price={typeof item.price === 'number' ? `$${item.price}` : item.price}
-                location={item.location || 'Verified Location'}
-                isVerified={true}
-                tags={item.tags || []}
-              />
             ))}
           </div>
-        )}
-        
-        <div className="load-more-container">
-          <button className="load-more-btn">
-            LOAD MORE TECH <ChevronDown size={16} />
-          </button>
-        </div>
-      </section>
+        </section>
+
+        {/* Flash Sale Section */}
+        <section className="flash-sale-section">
+          <div className="flash-header">
+            <div className="flash-title-wrap">
+              <h3 style={{color: "#ee4d2d", fontStyle: "italic", fontWeight: "bold", fontSize: "20px", margin: 0}}>FLASH SALE</h3>
+              <div className="countdown-timer">
+                <span>02</span>:<span>45</span>:<span>12</span>
+              </div>
+            </div>
+            <a href="#" className="see-all">Xem tất cả <ChevronRight size={16}/></a>
+          </div>
+          <div className="flash-grid">
+            {loading ? (
+              Array(6).fill(0).map((_, i) => <div key={i} className="skeleton-card" />)
+            ) : (
+              products.slice(0, 6).map(product => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  title={product.title}
+                  price={product.price}
+                  location={product.location}
+                  image={product.imageUrl || product.image}
+                  tags={product.tags}
+                  sold={product.sold || Math.floor(Math.random() * 500)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Daily Discoveries */}
+        <section className="daily-discoveries-section">
+          <div className="daily-header">
+            <h3>GỢI Ý HÔM NAY</h3>
+          </div>
+          <div className="daily-grid">
+            {loading ? (
+              Array(12).fill(0).map((_, i) => <div key={i} className="skeleton-card" />)
+            ) : (
+              products.map((product, idx) => (
+                <ProductCard
+                  key={idx}
+                  id={product.id}
+                  title={product.title}
+                  price={product.price}
+                  location={product.location}
+                  image={product.imageUrl || product.image}
+                  tags={product.tags}
+                  sold={product.sold || Math.floor(Math.random() * 500)}
+                />
+              ))
+            )}
+          </div>
+          <div className="load-more-btn-wrapper">
+            <button className="load-more-btn">Xem thêm</button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

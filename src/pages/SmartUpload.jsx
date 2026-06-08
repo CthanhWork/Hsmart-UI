@@ -1,49 +1,157 @@
-import React, { useState } from 'react';
-import { Camera, ShieldCheck, TrendingUp } from 'lucide-react';
-import { apiCreateProduct } from '../services/api';
+import { useEffect, useMemo, useState } from 'react';
+import { Camera, ShieldCheck, Sparkles, TrendingUp, WandSparkles } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import {
+  apiAnalyzeImage,
+  apiCreateProduct,
+  apiFetchCategories,
+  apiGenerateDescription,
+} from '../services/api';
 import './SmartUpload.css';
 
-const SmartUpload = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=800&q=80');
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishSuccess, setPublishSuccess] = useState(false);
+const DEFAULT_PREVIEW = 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=800&q=80';
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setPublishSuccess(false);
+const SmartUpload = () => {
+  const { isAuthenticated } = useUser();
+  const [categories, setCategories] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW);
+  const [form, setForm] = useState({
+    title: '',
+    categoryId: '',
+    price: '',
+    description: '',
+  });
+  const [analysis, setAnalysis] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiFetchCategories()
+      .then(setCategories)
+      .catch((requestError) => setError(requestError.message));
+  }, []);
+
+  useEffect(() => () => {
+    if (previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  }, [previewUrl]);
+
+  const confidence = Number(analysis?.aiMetadata?.confidence || 0);
+  const confidenceLabel = confidence > 0
+    ? `${Math.round(confidence * 100)}% confidence`
+    : 'Awaiting analysis';
+  const detectedLabel = analysis?.aiMetadata?.translated_label
+    || analysis?.aiMetadata?.translatedLabel
+    || analysis?.aiMetadata?.label
+    || 'Product image';
+
+  const formattedSuggestedPrice = useMemo(() => {
+    const price = Number(analysis?.suggestedPrice);
+    return Number.isFinite(price) && price > 0
+      ? `${price.toLocaleString('vi-VN')} VND`
+      : 'No market price yet';
+  }, [analysis?.suggestedPrice]);
+
+  const updateField = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setAnalysis(null);
+    setMessage('');
+    setError('');
+
+    if (!isAuthenticated) {
+      setError('Sign in before analyzing and publishing a product.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const result = await apiAnalyzeImage(file);
+      setAnalysis(result);
+      setForm((current) => ({
+        ...current,
+        title: current.title || result.suggestedName || '',
+        price: current.price || (result.suggestedPrice != null ? String(result.suggestedPrice) : ''),
+      }));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   const handlePublish = async () => {
+    setMessage('');
+    setError('');
+
+    if (!isAuthenticated) {
+      setError('Sign in before publishing a product.');
+      return;
+    }
+    if (!selectedFile) {
+      setError('Choose a product image before publishing.');
+      return;
+    }
+    if (!form.categoryId) {
+      setError('Choose a product category before publishing.');
+      return;
+    }
+    if (form.price === '' || Number(form.price) < 0) {
+      setError('Enter a valid product price.');
+      return;
+    }
+
     setIsPublishing(true);
     try {
       const formData = new FormData();
-      if (selectedFile) {
-        formData.append('file', selectedFile);
-      } else {
-        // Just for mock submission if no real file is selected
-        const mockBlob = new Blob(['mock content'], { type: 'image/jpeg' });
-        formData.append('file', mockBlob, 'mock.jpg');
-      }
-      
-      // Additional fields as required by the backend
-      formData.append('title', 'Samsung Bespoke 4-Door French Door Refrigerator');
-      formData.append('category', 'Refrigerators');
-      formData.append('price', '850');
-      formData.append('description', 'Lightly used Samsung Bespoke refrigerator...');
-      
-      await apiCreateProduct(formData);
-      setPublishSuccess(true);
-      alert('Listing published successfully!');
-    } catch (err) {
-      console.error('Failed to publish', err);
-      alert('Error publishing listing. Are you logged in?');
+      formData.append('file', selectedFile);
+      formData.append('title', form.title.trim());
+      formData.append('categoryId', form.categoryId);
+      formData.append('price', form.price);
+      formData.append('description', form.description.trim());
+
+      const createdProduct = await apiCreateProduct(formData);
+      setMessage(createdProduct.apiMessage || 'Product created successfully.');
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const generateDescription = async () => {
+    if (!form.title || !form.categoryId || form.price === '') {
+      setError('Enter a product name, category, and price before generating a description.');
+      return;
+    }
+    const category = categories.find((item) => String(item.id) === String(form.categoryId));
+    setIsGenerating(true);
+    setError('');
+    try {
+      const result = await apiGenerateDescription({
+        productName: form.title,
+        category: category?.name || 'Uncategorized',
+        condition: 'Pre-owned',
+        price: Number(form.price),
+      });
+      setForm((current) => ({ ...current, description: result?.generatedDescription || '' }));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -51,130 +159,145 @@ const SmartUpload = () => {
     <div className="smart-upload-page container">
       <div className="page-header">
         <span className="badge badge-success" style={{ marginBottom: '16px' }}>
-          <SparklesIcon /> HERO AI ENGINE
+          <Sparkles size={12} /> H-SMART AI ENGINE
         </span>
         <h1 className="page-title">Smart Upload</h1>
         <p className="page-desc">
-          Upload your appliance photo. Our AI will automatically identify the model, specs, and suggest the optimal price based on current market trends.
+          Upload an appliance image to receive an AI product name and a market-based price suggestion.
         </p>
       </div>
 
       <div className="upload-content">
         <div className="upload-visual">
           <div className="image-analysis-container">
-            <img 
-              src={previewUrl} 
-              alt="Appliance Analysis" 
-              className="analyzed-image"
-            />
-            {/* The bounding box */}
-            <div className="bounding-box">
-              <div className="bounding-box-header">
-                <span>Refrigerator - 98% Confidence</span>
-                <span className="box-coords">[x:245, y:180, w:450, h:600]</span>
+            <img src={previewUrl} alt="Product analysis" className="analyzed-image" />
+            {analysis ? (
+              <div className="bounding-box">
+                <div className="bounding-box-header">
+                  <span>{detectedLabel} - {confidenceLabel}</span>
+                  <span className="box-coords">
+                    {analysis.aiMetadata?.num_detections ?? analysis.aiMetadata?.numDetections ?? 0} detections
+                  </span>
+                </div>
               </div>
-            </div>
-            {/* The laser scan line */}
-            <div className="scan-line"></div>
-            
-            <label className="retake-btn cursor-pointer" style={{ cursor: 'pointer' }}>
-              <Camera size={16} /> Retake Photo
-              <input type="file" style={{ display: 'none' }} accept="image/*" onChange={handleFileChange} />
+            ) : null}
+            {isAnalyzing ? <div className="scan-line" /> : null}
+
+            <label className="retake-btn" style={{ cursor: 'pointer' }}>
+              <Camera size={16} /> {selectedFile ? 'Choose another image' : 'Choose image'}
+              <input type="file" hidden accept="image/*" onChange={handleFileChange} />
             </label>
-            
-            <div className="status-badge">
+
+            <div className="upload-status-badge">
               <span className="status-label text-success font-bold text-xs">STATUS</span>
-              <span className="status-text font-bold">Analysis Complete</span>
+              <span className="status-text font-bold">
+                {isAnalyzing ? 'Analyzing image' : analysis ? 'Analysis complete' : 'Ready for upload'}
+              </span>
             </div>
           </div>
-          
+
           <div className="analysis-results-row">
             <div className="result-card">
               <div className="result-header">
                 <ShieldCheck size={16} className="text-success" />
-                <span className="text-success font-bold text-xs uppercase tracking-wide">Condition Grade</span>
+                <span className="text-success font-bold text-xs uppercase tracking-wide">AI Detection</span>
               </div>
-              <div className="result-value">Excellent (A+)</div>
+              <div className="result-value">{detectedLabel}</div>
             </div>
             <div className="result-card">
               <div className="result-header">
                 <TrendingUp size={16} className="text-success" />
-                <span className="text-success font-bold text-xs uppercase tracking-wide">Est. Market Value</span>
+                <span className="text-success font-bold text-xs uppercase tracking-wide">Suggested Price</span>
               </div>
-              <div className="result-value">$850 - $920</div>
+              <div className="result-value">{formattedSuggestedPrice}</div>
             </div>
           </div>
         </div>
-        
+
         <div className="upload-form">
           <div className="form-header">
             <h3>Product Details</h3>
-            <div className="toggle-container">
-              <span className="text-xs">Correct AI suggestions?</span>
-              <div className="toggle active"></div>
-            </div>
+            <span className="text-xs">{analysis ? 'AI suggestions applied' : 'Manual details available'}</span>
           </div>
-          
+
           <div className="form-group">
-            <label>PRODUCT NAME</label>
-            <input type="text" defaultValue="Samsung Bespoke 4-Door French Door Refrigerator" className="form-input bg-gray" />
+            <label htmlFor="product-title">PRODUCT NAME</label>
+            <input
+              id="product-title"
+              name="title"
+              type="text"
+              value={form.title}
+              onChange={updateField}
+              placeholder="AI will suggest a name"
+              className="form-input bg-gray"
+            />
           </div>
-          
+
           <div className="form-group">
-            <label>CATEGORY</label>
-            <select className="form-select bg-gray">
-              <option>Refrigerators</option>
+            <label htmlFor="product-category">CATEGORY</label>
+            <select
+              id="product-category"
+              name="categoryId"
+              value={form.categoryId}
+              onChange={updateField}
+              className="form-select bg-gray"
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.displayName || category.name}
+                </option>
+              ))}
             </select>
           </div>
-          
-          <div className="ai-specs-card">
-            <h4 className="specs-title">AI EXTRACTED SPECS</h4>
-            <div className="specs-grid">
-              <div className="spec-item">
-                <span className="spec-label">COLOR/FINISH</span>
-                <span className="spec-value">Stainless Steel</span>
-              </div>
-              <div className="spec-item">
-                <span className="spec-label">CAPACITY</span>
-                <span className="spec-value">29 cu. ft.</span>
-              </div>
-              <div className="spec-item">
-                <span className="spec-label">DIMENSIONS</span>
-                <span className="spec-value">70" x 35.8" x 34.2"</span>
-              </div>
-              <div className="spec-item">
-                <span className="spec-label">ENERGY STAR</span>
-                <span className="spec-value text-success">Certified</span>
-              </div>
-            </div>
-          </div>
-          
+
           <div className="form-group">
-            <label>DESCRIPTION</label>
-            <textarea className="form-textarea bg-gray" rows="4" defaultValue="Lightly used Samsung Bespoke refrigerator. Features FlexZone drawer and Dual Auto Ice Maker. No visible scratches on the stainless steel finish."></textarea>
+            <label htmlFor="product-price">PRICE (VND)</label>
+            <input
+              id="product-price"
+              name="price"
+              type="number"
+              min="0"
+              step="1000"
+              value={form.price}
+              onChange={updateField}
+              placeholder="Enter a selling price"
+              className="form-input bg-gray"
+            />
           </div>
-          
-          <button 
+
+          <div className="form-group">
+            <div className="row-between">
+              <label htmlFor="product-description">DESCRIPTION</label>
+              <button type="button" className="text-action" onClick={generateDescription} disabled={isGenerating}>
+                <WandSparkles size={14} /> {isGenerating ? 'Generating...' : 'Generate with AI'}
+              </button>
+            </div>
+            <textarea
+              id="product-description"
+              name="description"
+              className="form-textarea bg-gray"
+              rows="5"
+              value={form.description}
+              onChange={updateField}
+              placeholder="Describe the condition, usage history, and included accessories"
+            />
+          </div>
+
+          {error ? <p role="alert" style={{ color: '#b42318', marginBottom: '12px' }}>{error}</p> : null}
+          {message ? <p role="status" style={{ color: '#067647', marginBottom: '12px' }}>{message}</p> : null}
+
+          <button
             className={`btn btn-primary publish-btn ${isPublishing ? 'opacity-50' : ''}`}
             onClick={handlePublish}
-            disabled={isPublishing}
+            disabled={isPublishing || isAnalyzing}
           >
-            {isPublishing ? 'Publishing...' : publishSuccess ? 'Published!' : 'Publish Listing'}
+            {isPublishing ? 'Publishing...' : 'Publish Listing'}
           </button>
-          
-          <p className="transaction-id text-center text-xs text-muted mt-4 uppercase tracking-widest" style={{ fontSize: '9px' }}>
-            Encrypted Transaction ID: H-SMART-99283-AIX
-          </p>
         </div>
       </div>
     </div>
   );
 };
-
-const SparklesIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-  </svg>
-);
 
 export default SmartUpload;

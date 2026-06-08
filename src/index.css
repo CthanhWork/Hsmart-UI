@@ -1,21 +1,23 @@
 :root {
-  --primary: #008f5d;
-  --primary-hover: #007049;
-  --bg: #f9f9f9;
+  --primary: #0066ff; /* Premium Cobalt Blue */
+  --primary-hover: #0052cc;
+  --primary-rgb: 0, 102, 255;
+  --bg: #fafafa; /* Soft off-white */
   --surface: #ffffff;
-  --text-main: #111111;
-  --text-muted: #666666;
-  --text-light: #999999;
-  --border: #eaeaea;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 32px;
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.06);
-  --shadow-lg: 0 16px 40px rgba(0,0,0,0.08);
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --text-main: #09090b; /* Deep Zinc Black */
+  --text-muted: #52525b; /* Zinc Muted Gray */
+  --text-light: #a1a1aa;
+  --border: #f4f4f5; /* Zinc-100 */
+  --border-dark: #e2e8f0; /* Zinc-200 */
+  --radius-sm: 6px;
+  --radius-md: 7px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --shadow-sm: 0 1px 2px 0 rgba(9, 9, 11, 0.01), 0 1px 3px 0 rgba(9, 9, 11, 0.02);
+  --shadow-md: 0 4px 12px -1px rgba(9, 9, 11, 0.03), 0 2px 4px -1px rgba(9, 9, 11, 0.02), 0 12px 20px -3px rgba(9, 9, 11, 0.03);
+  --shadow-lg: 0 20px 25px -5px rgba(9, 9, 11, 0.03), 0 10px 10px -5px rgba(9, 9, 11, 0.01);
+  --font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -28,13 +30,16 @@ body {
   font-family: var(--font-family);
   background-color: var(--bg);
   color: var(--text-main);
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
 a {
   text-decoration: none;
   color: inherit;
+  transition: var(--transition);
 }
 
 button {
@@ -42,64 +47,176 @@ button {
   background: none;
   cursor: pointer;
   font-family: inherit;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 24px;
-  border-radius: 100px;
-  font-weight: 600;
-  font-size: 14px;
   transition: var(--transition);
-  cursor: pointer;
 }
 
-.btn-primary {
-  background-color: var(--primary);
-  color: white;
+input, textarea, select {
+  font-family: inherit;
 }
 
-.btn-primary:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background-color: #e5e7eb;
-  color: var(--text-main);
-}
-
-.btn-secondary:hover {
-  background-color: #d1d5db;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 100px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.badge-success {
-  background-color: #e0f5ea;
-  color: var(--primary);
-}
-
+/* Base Layout Container */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
+  width: 100%;
 }
 
 .page-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg);
+}
+
+.app-main {
+  flex: 1;
+}
+
+/* Premium Vercel-style Card */
+.double-bezel {
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  transition: var(--transition);
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+}
+
+.double-bezel:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-md);
+}
+
+/* Premium Modern Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: var(--transition);
+  cursor: pointer;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary {
+  background-color: var(--text-main);
+  color: white;
+  border: 1px solid var(--text-main);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15);
+}
+
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-secondary {
+  background-color: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-dark);
+}
+
+.btn-secondary:hover {
+  background-color: var(--border);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Button-in-Button / Island icon circle */
+.island-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.btn-secondary .island-icon {
+  background-color: var(--border-dark);
+}
+
+.btn:hover .island-icon {
+  transform: translateX(1px);
+}
+
+/* Premium Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.05);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.05);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+/* Trust Score Badge (Airbnb style) */
+.trust-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(0, 102, 255, 0.05);
+  color: var(--primary);
+  border: 1px solid rgba(0, 102, 255, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* Skeleton Loading States */
+.skeleton-card {
+  height: 280px;
+  background: linear-gradient(90deg, #f4f4f5 25%, #e2e8f0 50%, #f4f4f5 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-dark);
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

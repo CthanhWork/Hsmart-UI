@@ -1,16 +1,41 @@
-# React + Vite
+# H-Smart UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and Vite frontend connected to the H-Smart API Gateway.
 
-Currently, two official plugins are available:
+## Backend Configuration
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Create `.env.local` from `.env.example`:
 
-## React Compiler
+```bash
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+For the GCP backend, set `VITE_API_BASE_URL` to the public API Gateway or Tailscale Serve address.
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+```
+
+## Verification
+
+```bash
+npm run lint
+npm run build
+```
+
+## Implemented Workflows
+
+- Authentication and profile management
+- Product catalog, search, categories, wishlist, and seller listings
+- Smart Naming, Smart Pricing, AI descriptions, and product creation
+- Product update and deletion
+- Order creation, lookup, confirmation, completion, and reviews
+- Reports, notifications, product chat, and AI assistant
+- Admin statistics, moderation, report handling, user bans, and category creation
+
+See [UI-FEATURE-MAP.md](./UI-FEATURE-MAP.md) for the route-to-backend mapping and intentional exclusions.
+
+The order page uses direct lookup and remembers recently opened order IDs because order-service does not currently expose a user-facing order list endpoint.

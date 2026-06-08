@@ -80,7 +80,11 @@
 }
 
 .auth-switch {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--primary);
+  font: inherit;
   font-weight: 600;
   cursor: pointer;
 }

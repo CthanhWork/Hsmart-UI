@@ -1,109 +1,23 @@
 .footer {
-  background-color: var(--bg);
-  padding: 64px 0 24px;
-  border-top: 1px solid var(--border);
-  margin-top: 64px;
+  margin-top: auto;
+  border-top: 1px solid var(--border-dark);
+  background: var(--surface);
 }
 
 .footer-content {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 64px;
-  flex-wrap: wrap;
-  gap: 48px;
-}
-
-.footer-brand {
-  max-width: 320px;
-}
-
-.footer-logo {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  letter-spacing: -0.5px;
-}
-
-.footer-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.footer-links-grid {
-  display: flex;
-  gap: 64px;
-  flex-wrap: wrap;
-}
-
-.footer-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.footer-column h4 {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.footer-column a {
-  font-size: 13px;
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-
-.footer-column a:hover {
-  color: var(--text-main);
-}
-
-.newsletter-input {
-  display: flex;
-  background: white;
-  border-radius: 100px;
-  padding: 4px 4px 4px 16px;
-  border: 1px solid var(--border);
-}
-
-.newsletter-input input {
-  border: none;
-  outline: none;
-  background: transparent;
-  flex: 1;
-  font-size: 13px;
-  min-width: 200px;
-}
-
-.newsletter-input .btn {
-  padding: 8px 24px;
-}
-
-.footer-bottom {
-  display: flex;
-  justify-content: space-between;
+  min-height: 72px;
   align-items: center;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
-  font-size: 10px;
-  color: var(--text-light);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.footer-legal {
-  display: flex;
-  gap: 24px;
-}
-
-.footer-legal a {
-  transition: color 0.2s;
-}
-
-.footer-legal a:hover {
+  justify-content: space-between;
+  gap: 20px;
   color: var(--text-muted);
+  font-size: 12px;
+}
+
+.footer-content strong { color: var(--text-main); font-size: 15px; }
+.footer-content nav { display: flex; gap: 18px; }
+.footer-content a:hover { color: var(--primary); }
+
+@media (max-width: 620px) {
+  .footer-content { align-items: flex-start; flex-direction: column; padding-top: 20px; padding-bottom: 20px; }
 }

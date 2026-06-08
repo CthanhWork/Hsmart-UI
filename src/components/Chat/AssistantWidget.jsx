@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Sparkles } from 'lucide-react';
 import { apiChatAssistant } from '../../services/api';
+import { useUser } from '../../context/UserContext';
 import './AssistantWidget.css';
 
 const AssistantWidget = () => {
+  const { isAuthenticated } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { id: 1, text: 'Hello! I am H-Smart AI. I can help you value your appliances, answer questions about our verification process, or help you find a specific product.', isBot: true }
@@ -36,12 +38,14 @@ const AssistantWidget = () => {
       const botReply = response.reply || response.response || response.message || response;
       
       setMessages(prev => [...prev, { id: Date.now(), text: botReply, isBot: true }]);
-    } catch (error) {
+    } catch {
       setMessages(prev => [...prev, { id: Date.now(), text: 'Sorry, I am having trouble connecting to my neural network right now.', isBot: true, isError: true }]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="assistant-widget-container">

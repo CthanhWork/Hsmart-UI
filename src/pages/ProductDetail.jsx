@@ -1,91 +1,186 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Sparkles, ShieldCheck, MapPin, Tag, Truck, MessageCircle } from 'lucide-react';
-import { apiFetchProductById } from '../services/api';
-import './ProductDetail.css';
+import { useEffect, useState } from 'react';
+import { Heart, MessageCircle, ShoppingCart, Flag, Star } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import StatusBadge from '../components/common/StatusBadge';
+import { useUser } from '../context/UserContext';
+import {
+  apiCreateOrder,
+  apiFetchProductById,
+  apiFetchSellerReviews,
+  apiSubmitReport,
+  apiToggleWishlist,
+} from '../services/api';
+import { rememberOrderId } from '../services/orderHistory';
+import './Operations.css';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useUser();
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reportReason, setReportReason] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const load = async () => {
       try {
-        setLoading(true);
-        const data = await apiFetchProductById(id);
-        setProduct(data);
-      } catch (error) {
-        console.error('Error loading product details', error);
+        const nextProduct = await apiFetchProductById(id);
+        setProduct(nextProduct);
+        const sellerReviews = await apiFetchSellerReviews(nextProduct.sellerId);
+        setReviews(Array.isArray(sellerReviews) ? sellerReviews : []);
+      } catch (requestError) {
+        setError(requestError.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchProduct();
+    load();
   }, [id]);
 
-  if (loading) return <div className="container" style={{ padding: '100px 0', textAlign: 'center' }}>Loading intelligence...</div>;
-  if (!product) return <div className="container" style={{ padding: '100px 0', textAlign: 'center' }}>Product not found.</div>;
+  const requireAccount = () => {
+    if (!isAuthenticated) {
+      setError('Sign in to perform this action.');
+      return false;
+    }
+    return true;
+  };
+
+  const buyProduct = async () => {
+    if (!requireAccount()) return;
+    setError('');
+    try {
+      const order = await apiCreateOrder(product.id);
+      rememberOrderId(order.id);
+      navigate(`/orders?orderId=${order.id}`);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    if (!requireAccount()) return;
+    try {
+      const response = await apiToggleWishlist(product.id);
+      setFeedback(response?.message || 'Wishlist updated.');
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  const submitReport = async (event) => {
+    event.preventDefault();
+    if (!requireAccount()) return;
+    if (!reportReason.trim()) return;
+    try {
+      await apiSubmitReport(product.id, reportReason.trim());
+      setReportReason('');
+      setFeedback('Report submitted for administrator review.');
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  if (loading) return <div className="page-state">Loading product...</div>;
+  if (!product) return <div className="page-state">{error || 'Product not found.'}</div>;
+
+  const detection = product.aiMetadata[0];
+  const confidence = Number(detection?.confidence ?? detection?.score ?? 0);
+  const isOwner = user && String(product.sellerId) === String(user.username || user.id);
 
   return (
-    <div className="product-detail-page container">
-      <button className="back-btn" onClick={() => navigate(-1)}>← Back to Marketplace</button>
-      
-      <div className="product-detail-grid">
-        <div className="product-visual-section">
-          <div className="main-image-wrapper">
-            <img src={product.imageUrl} alt={product.title} className="main-image" />
-            <div className="ai-overlay-badge">
-              <Sparkles size={14} color="var(--primary)" />
-              <span className="text-xs font-bold text-success ml-2">VERIFIED</span>
-            </div>
-          </div>
-        </div>
+    <div className="operations-page container">
+      <div className="detail-layout">
+        <section className="detail-media">
+          <img src={product.imageUrl} alt={product.title} />
+        </section>
 
-        <div className="product-info-section">
-          <div className="flex-between mb-2">
-            <span className="badge badge-success text-xs font-bold uppercase">{product.status || 'AVAILABLE'}</span>
-            <span className="text-muted text-xs flex items-center gap-1"><MapPin size={12} /> {product.location || 'Verified Location'}</span>
+        <section className="surface detail-summary">
+          <div className="row-between">
+            <StatusBadge status={product.status} />
+            <span className="muted">{product.categoryName || 'Uncategorized'}</span>
           </div>
-          
-          <h1 className="detail-title">{product.title}</h1>
-          <div className="detail-price mt-2">${product.price}</div>
+          <h1>{product.title}</h1>
+          <div className="detail-price">{Number(product.price).toLocaleString('vi-VN')} VND</div>
+          <p>{product.description || 'No description was provided.'}</p>
 
-          <div className="ai-verification-card mt-6">
-            <div className="card-header flex-between mb-4">
-              <h3 className="text-sm font-bold flex items-center gap-2">
-                <ShieldCheck size={18} className="text-success" />
-                AI Integrity Report
-              </h3>
-              <span className="text-xs text-muted">Scan Confidence: {(product.aiMetadata?.confidence * 100) || 98}%</span>
+          <dl className="fact-list">
+            <div><dt>Seller ID</dt><dd>{product.sellerId}</dd></div>
+            <div><dt>Saved by users</dt><dd>{product.likeCount}</dd></div>
+            <div><dt>AI label</dt><dd>{detection?.label || 'Unavailable'}</dd></div>
+            <div><dt>AI confidence</dt><dd>{confidence ? `${Math.round(confidence * 100)}%` : 'Unavailable'}</dd></div>
+          </dl>
+
+          {error ? <div className="feedback feedback-error">{error}</div> : null}
+          {feedback ? <div className="feedback feedback-success">{feedback}</div> : null}
+
+          {!isOwner ? (
+            <div className="button-row">
+              <button className="btn btn-primary" onClick={buyProduct} disabled={product.status !== 'APPROVED'}>
+                <ShoppingCart size={17} /> Create order
+              </button>
+              <button className="btn btn-secondary" onClick={toggleWishlist}>
+                <Heart size={17} /> Save
+              </button>
+              <Link className="btn btn-secondary" to={`/chat?participantId=${encodeURIComponent(product.sellerId)}&productId=${product.id}`}>
+                <MessageCircle size={17} /> Chat
+              </Link>
             </div>
-            <div className="metrics-grid">
-              <div className="metric-item">
-                <span className="metric-label">CONDITION GRADE</span>
-                <span className="metric-value text-success">{product.aiMetadata?.condition || 'A+ (Pristine)'}</span>
+          ) : (
+            <Link className="btn btn-secondary" to={`/products/${product.id}/edit`}>Edit listing</Link>
+          )}
+        </section>
+      </div>
+
+      <div className="two-column">
+        <section className="surface">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Seller feedback</p>
+              <h2>Reviews</h2>
+            </div>
+            <span className="muted">{reviews.length} total</span>
+          </div>
+          {reviews.length === 0 ? <p className="muted">This seller has no reviews yet.</p> : (
+            <div className="stack-list">
+              {reviews.map((review) => (
+                <article key={review.id} className="list-row">
+                  <div>
+                    <strong>{review.buyerId}</strong>
+                    <p>{review.comment || 'No written comment.'}</p>
+                  </div>
+                  <span className="rating"><Star size={14} fill="currentColor" /> {review.rating}/5</span>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {!isOwner ? (
+          <section className="surface">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Safety</p>
+                <h2>Report listing</h2>
               </div>
-              <div className="metric-item">
-                <span className="metric-label">EXTERNAL DAMAGE</span>
-                <span className="metric-value">None Detected</span>
-              </div>
+              <Flag size={18} />
             </div>
-          </div>
-
-          <div className="product-description mt-6">
-            <h3 className="text-sm font-bold mb-2">Description</h3>
-            <p className="text-sm text-muted line-height-relaxed">{product.description}</p>
-          </div>
-
-          <div className="action-buttons mt-8">
-            <button className="btn btn-primary w-full flex-center gap-2" style={{ width: '100%', padding: '16px', fontSize: '15px' }}>
-              <Truck size={18} /> Buy Now with Safe Checkout
-            </button>
-            <button className="btn btn-secondary w-full mt-4 flex-center gap-2" style={{ width: '100%', padding: '16px', fontSize: '15px' }}>
-              <MessageCircle size={18} /> Message Seller
-            </button>
-          </div>
-        </div>
+            <form className="form-stack" onSubmit={submitReport}>
+              <label>
+                Reason
+                <textarea
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  required
+                  placeholder="Describe the issue for the administrator"
+                />
+              </label>
+              <button className="btn btn-secondary" type="submit">Submit report</button>
+            </form>
+          </section>
+        ) : null}
       </div>
     </div>
   );

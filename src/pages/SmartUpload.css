@@ -98,7 +98,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.status-badge {
+.upload-status-badge {
   position: absolute;
   bottom: 24px;
   left: 24px;

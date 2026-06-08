@@ -1,8 +1,9 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { apiLogin, apiGetProfile } from '../services/api';
 
 const UserContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
@@ -22,8 +23,9 @@ export const UserProvider = ({ children }) => {
         setUser(profileData);
       } catch (err) {
         console.error('Failed to load user profile. Token might be invalid.', err);
-        // Clear token if invalid
-        logout();
+        localStorage.removeItem('hsmart_token');
+        setToken(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -32,17 +34,21 @@ export const UserProvider = ({ children }) => {
   }, [token]);
 
   const login = async (username, password) => {
-    try {
-      const response = await apiLogin(username, password);
-      // apiLogin already saves to localStorage, but we also update state here
-      const newToken = response.data?.token || response.token;
-      setToken(newToken);
-      // We don't fetch profile immediately here because useEffect depends on token change
-      // Alternatively, we could fetch here to be instant
-      return response;
-    } catch (err) {
-      throw err;
+    const response = await apiLogin(username, password);
+    setToken(response.accessToken);
+    if (response.user) {
+      setUser(response.user);
+    } else {
+      const profile = await apiGetProfile();
+      setUser(profile);
     }
+    return response;
+  };
+
+  const refreshProfile = async () => {
+    const profile = await apiGetProfile();
+    setUser(profile);
+    return profile;
   };
 
   const logout = () => {
@@ -57,6 +63,7 @@ export const UserProvider = ({ children }) => {
     loading,
     login,
     logout,
+    refreshProfile,
     isAuthenticated: !!token,
   };
 

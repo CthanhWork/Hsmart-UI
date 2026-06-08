@@ -1,31 +1,51 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Layout/Navbar';
-import Footer from './components/Layout/Footer';
-import Home from './pages/Home';
-import Marketplace from './pages/Marketplace';
-import SmartUpload from './pages/SmartUpload';
-import MyHub from './pages/MyHub';
-import ProductDetail from './pages/ProductDetail';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import AssistantWidget from './components/Chat/AssistantWidget';
+import Footer from './components/Layout/Footer';
+import Navbar from './components/Layout/Navbar';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import Admin from './pages/Admin';
+import Chat from './pages/Chat';
+import Marketplace from './pages/Marketplace';
+import MyHub from './pages/MyHub';
+import NotFound from './pages/NotFound';
+import Notifications from './pages/Notifications';
+import Orders from './pages/Orders';
+import ProductDetail from './pages/ProductDetail';
+import ProductEdit from './pages/ProductEdit';
+import Profile from './pages/Profile';
+import SmartUpload from './pages/SmartUpload';
+import Wishlist from './pages/Wishlist';
+
+const protectedPage = (page, adminOnly = false) => (
+  <ProtectedRoute adminOnly={adminOnly}>{page}</ProtectedRoute>
+);
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <div className="page-container">
         <Navbar />
-        <main style={{ flex: 1 }}>
+        <main className="app-main">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Marketplace />} />
             <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/sell" element={<SmartUpload />} />
-            <Route path="/myhub" element={<MyHub />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
+            <Route path="/sell" element={protectedPage(<SmartUpload />)} />
+            <Route path="/products/:id/edit" element={protectedPage(<ProductEdit />)} />
+            <Route path="/listings" element={protectedPage(<MyHub />)} />
+            <Route path="/profile" element={protectedPage(<Profile />)} />
+            <Route path="/wishlist" element={protectedPage(<Wishlist />)} />
+            <Route path="/orders" element={protectedPage(<Orders />)} />
+            <Route path="/notifications" element={protectedPage(<Notifications />)} />
+            <Route path="/chat" element={protectedPage(<Chat />)} />
+            <Route path="/admin" element={protectedPage(<Admin />, true)} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
         <AssistantWidget />
         <Footer />
       </div>
-    </Router>
+    </BrowserRouter>
   );
 }
 

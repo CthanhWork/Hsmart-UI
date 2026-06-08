@@ -1,129 +1,104 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/common/ProductCard';
-import { ChevronDown } from 'lucide-react';
-import { apiFetchProducts } from '../services/api';
-import './Marketplace.css';
+import { apiFetchCategories, apiFetchProductPage, apiSearchProducts } from '../services/api';
+import './Operations.css';
 
 const Marketplace = () => {
-  const [listings, setListings] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [query, setQuery] = useState(searchParams.get('q') || '');
+  const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchListings = async () => {
+    apiFetchCategories().then(setCategories).catch((requestError) => setError(requestError.message));
+  }, []);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const data = await apiFetchProducts();
-        setListings(data || []);
-      } catch (err) {
-        console.error('Failed to fetch from API', err);
+        const routeQuery = searchParams.get('q') || '';
+        const routeCategory = searchParams.get('categoryId') || '';
+        const page = routeQuery
+          ? await apiSearchProducts(routeQuery)
+          : await apiFetchProductPage({
+            status: 'APPROVED',
+            categoryId: routeCategory || undefined,
+          });
+        setProducts(page.content);
+      } catch (requestError) {
+        setError(requestError.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchListings();
-  }, []);
+    loadProducts();
+  }, [searchParams]);
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    const next = {};
+    if (query.trim()) next.q = query.trim();
+    if (!query.trim() && categoryId) next.categoryId = categoryId;
+    setSearchParams(next);
+  };
+
+  const selectCategory = (value) => {
+    setCategoryId(value);
+    setQuery('');
+    setSearchParams(value ? { categoryId: value } : {});
+  };
 
   return (
-    <div className="marketplace-page container">
-      <div className="marketplace-header flex-between">
+    <div className="operations-page container">
+      <header className="operations-header">
         <div>
-          <span className="text-xs text-success font-bold uppercase tracking-wide">VERIFIED MARKETPLACE</span>
-          <h1 className="page-title mt-2">The Precision Selection</h1>
+          <p className="eyebrow">Marketplace</p>
+          <h1>Verified household products</h1>
+          <p>Browse products approved for sale by H-Smart moderation.</p>
         </div>
-        <div className="marketplace-actions">
-          <span className="text-sm text-muted">Showing {listings.length} results</span>
-          <button className="btn btn-secondary" style={{ padding: '8px 16px', background: 'transparent', fontWeight: 600 }}>
-            Sort by: Newest <ChevronDown size={16} />
+      </header>
+
+      <form className="catalog-toolbar" onSubmit={submitSearch}>
+        <label className="search-field">
+          <Search size={18} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by product name or description"
+            aria-label="Search products"
+          />
+        </label>
+        <button className="btn btn-primary" type="submit">Search</button>
+      </form>
+
+      <div className="category-tabs" aria-label="Product categories">
+        <button className={!categoryId ? 'active' : ''} onClick={() => selectCategory('')}>All</button>
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            className={String(categoryId) === String(category.id) ? 'active' : ''}
+            onClick={() => selectCategory(String(category.id))}
+          >
+            {category.displayName || category.name}
           </button>
-        </div>
+        ))}
       </div>
 
-      <div className="marketplace-layout">
-        {/* Sidebar Filters */}
-        <aside className="filters-sidebar">
-          <h4 className="filter-title uppercase text-xs font-bold tracking-wide mb-4">FILTERS</h4>
-          
-          <div className="filter-group">
-            <h5 className="font-bold text-sm mb-4">AI Condition Grade</h5>
-            <label className="checkbox-label">
-              <input type="radio" name="grade" defaultChecked />
-              <span>Grade A+</span>
-              <span className="badge badge-success ml-auto">Pristine</span>
-            </label>
-            <label className="checkbox-label">
-              <input type="radio" name="grade" />
-              <span>Grade A</span>
-            </label>
-            <label className="checkbox-label">
-              <input type="radio" name="grade" />
-              <span>Grade B</span>
-            </label>
-          </div>
+      {error ? <div className="feedback feedback-error" role="alert">{error}</div> : null}
+      {loading ? <div className="page-state">Loading products...</div> : null}
+      {!loading && !error && products.length === 0 ? (
+        <div className="page-state">No approved products match this search.</div>
+      ) : null}
 
-          <div className="filter-group mt-8">
-            <h5 className="font-bold text-sm mb-4">Year of Release</h5>
-            <div className="pill-grid">
-              <button className="pill-btn active">2024</button>
-              <button className="pill-btn">2023</button>
-              <button className="pill-btn">2022</button>
-              <button className="pill-btn">Older</button>
-            </div>
-          </div>
-
-          <div className="filter-group mt-8">
-            <h5 className="font-bold text-sm mb-4">Energy Efficiency</h5>
-            <div className="range-slider-mock">
-              <div className="range-track">
-                <div className="range-fill"></div>
-                <div className="range-thumb"></div>
-              </div>
-              <div className="flex-between text-xs font-bold mt-2">
-                <span>B</span>
-                <span>A++</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="filter-info-card mt-8">
-            <h5 className="font-bold text-sm text-success flex items-center gap-2 mb-2">
-              <span className="ai-icon">✨</span> AI Verification Active
-            </h5>
-            <p className="text-xs text-muted line-height-relaxed">
-              Every listing is cross-referenced with 42 diagnostic markers before approval.
-            </p>
-          </div>
-        </aside>
-
-        {/* Product Grid */}
-        <div className="marketplace-grid">
-          {loading ? (
-            <div style={{ color: '#666', gridColumn: '1 / -1', padding: '40px' }}>Loading intelligent data...</div>
-          ) : (
-            listings.map(item => (
-              <div key={item.id} className="market-card-wrapper">
-                 <ProductCard 
-                   image={item.imageUrl}
-                   title={item.title}
-                   price={typeof item.price === 'number' ? `$${item.price}` : item.price}
-                   location={item.location || 'Verified by AI'}
-                   isVerified={true}
-                   tags={item.tags || []}
-                 />
-                 <div className="market-card-extra">
-                   <div className="flex-between text-xs font-bold mb-2">
-                     <span className="text-muted uppercase">SEAL INTEGRITY</span>
-                     <span className="text-success">99%</span>
-                   </div>
-                   <div className="progress-bar-container mb-4">
-                     <div className="progress-bar-fill" style={{ width: '99%' }}></div>
-                   </div>
-                   <button className="btn btn-secondary w-full" style={{ width: '100%' }}>
-                     View Full Intelligence
-                   </button>
-                 </div>
-              </div>
-            ))
-          )}
-        </div>
+      <div className="product-grid">
+        {products.map((product) => <ProductCard key={product.id} product={product} />)}
       </div>
     </div>
   );

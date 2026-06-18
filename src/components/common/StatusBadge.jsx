@@ -10,9 +10,22 @@ const toneByStatus = {
   CANCELLED: 'danger',
 };
 
+const labelByStatus = {
+  ACTIVE: 'Đang bán',
+  APPROVED: 'Đã duyệt',
+  COMPLETED: 'Hoàn tất',
+  SOLD: 'Đã bán',
+  PENDING: 'Chờ xử lý',
+  PROCESSING: 'Đang xử lý',
+  PENDING_REVIEW: 'Chờ duyệt',
+  HIDDEN: 'Đã ẩn',
+  CANCELLED: 'Đã hủy',
+  UNKNOWN: 'Không rõ',
+};
+
 const StatusBadge = ({ status = 'UNKNOWN' }) => (
   <span className={`status-badge status-${toneByStatus[status] || 'neutral'}`}>
-    {String(status).replaceAll('_', ' ')}
+    {labelByStatus[status] || String(status).replaceAll('_', ' ')}
   </span>
 );
 

@@ -6,7 +6,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   const location = useLocation();
 
   if (loading) {
-    return <div className="page-state">Loading account...</div>;
+    return <div className="page-state">Đang tải tài khoản...</div>;
   }
 
   if (!isAuthenticated) {

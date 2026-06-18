@@ -1,23 +1,25 @@
 :root {
-  --primary: #0066ff; /* Premium Cobalt Blue */
-  --primary-hover: #0052cc;
-  --primary-rgb: 0, 102, 255;
-  --bg: #fafafa; /* Soft off-white */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-rgb: 37, 99, 235;
+  --bg: #ffffff;
+  --bg-muted: #fafafa;
   --surface: #ffffff;
-  --text-main: #09090b; /* Deep Zinc Black */
-  --text-muted: #52525b; /* Zinc Muted Gray */
-  --text-light: #a1a1aa;
-  --border: #f4f4f5; /* Zinc-100 */
-  --border-dark: #e2e8f0; /* Zinc-200 */
+  --surface-soft: rgba(255, 255, 255, 0.72);
+  --text-main: #0a0a0a;
+  --text-muted: #737373;
+  --text-light: #a3a3a3;
+  --border: #e5e5e5;
+  --border-dark: #d4d4d4;
   --radius-sm: 6px;
-  --radius-md: 7px;
-  --radius-lg: 8px;
-  --radius-xl: 8px;
-  --shadow-sm: 0 1px 2px 0 rgba(9, 9, 11, 0.01), 0 1px 3px 0 rgba(9, 9, 11, 0.02);
-  --shadow-md: 0 4px 12px -1px rgba(9, 9, 11, 0.03), 0 2px 4px -1px rgba(9, 9, 11, 0.02), 0 12px 20px -3px rgba(9, 9, 11, 0.03);
-  --shadow-lg: 0 20px 25px -5px rgba(9, 9, 11, 0.03), 0 10px 10px -5px rgba(9, 9, 11, 0.01);
-  --font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --shadow-sm: 0 1px 2px rgba(10, 10, 10, 0.04);
+  --shadow-md: 0 10px 30px -18px rgba(10, 10, 10, 0.45);
+  --shadow-lg: 0 24px 70px -42px rgba(10, 10, 10, 0.55);
+  --font-family: "Segoe UI Variable", "Segoe UI", Arial, Helvetica, sans-serif;
+  --transition: 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 * {
@@ -28,18 +30,22 @@
 
 body {
   font-family: var(--font-family);
-  background-color: var(--bg);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(var(--primary-rgb), 0.035), transparent 34rem),
+    var(--bg);
   color: var(--text-main);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
 a {
   text-decoration: none;
   color: inherit;
-  transition: var(--transition);
+  transition: color var(--transition), background-color var(--transition), border-color var(--transition);
 }
 
 button {
@@ -47,23 +53,46 @@ button {
   background: none;
   cursor: pointer;
   font-family: inherit;
-  transition: var(--transition);
+  transition: color var(--transition), background-color var(--transition), border-color var(--transition), transform var(--transition);
 }
 
 input, textarea, select {
   font-family: inherit;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-family);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #a3a3a3;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
 /* Base Layout Container */
 .container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 24px;
   width: 100%;
 }
 
 .page-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
@@ -77,11 +106,11 @@ input, textarea, select {
 .double-bezel {
   background: var(--surface);
   border: 1px solid var(--border-dark);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: 20px;
   box-shadow: var(--shadow-sm);
   position: relative;
-  transition: var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
 }
 
 @media (max-width: 600px) {
@@ -92,7 +121,7 @@ input, textarea, select {
 }
 
 .double-bezel:hover {
-  border-color: #cbd5e1;
+  border-color: var(--text-main);
   box-shadow: var(--shadow-md);
 }
 
@@ -102,10 +131,10 @@ input, textarea, select {
   align-items: center;
   justify-content: center;
   padding: 10px 20px;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   font-weight: 600;
   font-size: 13.5px;
-  transition: var(--transition);
+  transition: background-color var(--transition), border-color var(--transition), transform var(--transition), box-shadow var(--transition);
   cursor: pointer;
   gap: 8px;
   box-shadow: var(--shadow-sm);
@@ -135,7 +164,7 @@ input, textarea, select {
 }
 
 .btn-secondary:hover {
-  background-color: var(--border);
+  background-color: var(--bg-muted);
   transform: translateY(-1px);
 }
 
@@ -186,6 +215,39 @@ input, textarea, select {
   background-color: rgba(245, 158, 11, 0.05);
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(229, 229, 229, 0.92);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(12px);
+  color: var(--text-main);
+  font-size: 10.5px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.status-success {
+  color: #047857;
+}
+
+.status-warning {
+  color: #b45309;
+}
+
+.status-danger {
+  color: #be123c;
+}
+
+.status-neutral {
+  color: var(--text-muted);
 }
 
 /* Trust Score Badge (Airbnb style) */

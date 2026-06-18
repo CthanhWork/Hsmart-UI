@@ -3,9 +3,9 @@ import './Operations.css';
 
 const NotFound = () => (
   <div className="page-state">
-    <h1>Page not found</h1>
-    <p>This route is not part of the H-Smart application.</p>
-    <Link className="btn btn-primary" to="/">Return to marketplace</Link>
+    <h1>Không tìm thấy trang</h1>
+    <p>Đường dẫn này không thuộc ứng dụng H-Smart.</p>
+    <Link className="btn btn-primary" to="/">Quay lại chợ</Link>
   </div>
 );
 

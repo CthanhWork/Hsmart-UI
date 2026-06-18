@@ -1,0 +1,139 @@
+.seller-listings-page {
+  background: #ffffff;
+  padding-top: 32px;
+}
+
+.listings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.dashboard-title {
+  margin: 0 !important;
+  color: #0f172a !important;
+  font-size: 28px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.dashboard-title::before {
+  content: none !important;
+}
+
+.create-listing-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 7px;
+  height: 40px !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  line-height: 38px !important;
+  text-transform: none !important;
+}
+
+.listings-error {
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.table-container-card {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  padding: 24px !important;
+}
+
+.data-listings-table th {
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.flex-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-product-thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.table-product-title-text {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table-product-title-text:hover {
+  color: #1e87f0;
+}
+
+.price-cell-value {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table-actions-group {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-icon-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-icon-btn {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.edit-icon-btn:hover {
+  background: rgba(30, 135, 240, 0.08);
+  color: #1e87f0;
+}
+
+.delete-icon-btn {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.delete-icon-btn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.no-listings-fallback {
+  padding: 40px 20px;
+}
+
+@media (max-width: 640px) {
+  .listings-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-listing-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -9,24 +9,36 @@ const Notifications = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiFetchNotifications().then((data) => setNotifications(Array.isArray(data) ? data : [])).catch((requestError) => setError(requestError.message));
+    apiFetchNotifications()
+      .then((data) => setNotifications(Array.isArray(data) ? data : []))
+      .catch((requestError) => setError(requestError.message));
   }, []);
 
   return (
     <div className="operations-page container narrow-page">
-      <header className="operations-header"><div><p className="eyebrow">Activity</p><h1>Notifications</h1><p>Order, product, and conversation updates from interaction-service.</p></div></header>
+      <header className="operations-header">
+        <div>
+          <h1>Thông báo</h1>
+        </div>
+      </header>
+
       {error ? <div className="feedback feedback-error">{error}</div> : null}
+
       <section className="surface stack-list">
         {notifications.map((notification) => (
           <article className="notification-row" key={notification.id}>
             <Bell size={17} />
-            <div><div className="row-between"><strong>{notification.type || 'Notification'}</strong><time>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time></div>
+            <div>
+              <div className="row-between">
+                <strong>{notification.type || 'Thông báo'}</strong>
+                <time>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time>
+              </div>
               <p>{notification.message}</p>
-              {notification.productId ? <Link to={`/products/${notification.productId}`}>Open product</Link> : null}
+              {notification.productId ? <Link to={`/products/${notification.productId}`}>Mở sản phẩm</Link> : null}
             </div>
           </article>
         ))}
-        {notifications.length === 0 && !error ? <div className="page-state">No notifications yet.</div> : null}
+        {notifications.length === 0 && !error ? <div className="page-state">Chưa có thông báo.</div> : null}
       </section>
     </div>
   );

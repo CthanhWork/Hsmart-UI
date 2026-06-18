@@ -4,9 +4,57 @@ const DEFAULT_PRODUCT_IMAGE = '/products_hq/coffee_maker.jpg';
 
 export const getToken = () => localStorage.getItem('hsmart_token');
 
+const CATEGORY_LABELS = {
+  air_conditioner: 'Máy lạnh',
+  automatic_washer: 'Máy giặt',
+  bed: 'Giường',
+  bedspread: 'Ga trải giường',
+  bench: 'Ghế băng',
+  blender: 'Máy xay',
+  bunk_bed: 'Giường tầng',
+  cabinet: 'Tủ',
+  chair: 'Ghế',
+  coffee_table: 'Bàn cà phê',
+  cupboard: 'Tủ chén',
+  deck_chair: 'Ghế thư giãn',
+  desk: 'Bàn làm việc',
+  dining_table: 'Bàn ăn',
+  drawer: 'Ngăn kéo',
+  electric_chair: 'Ghế điện',
+  fan: 'Quạt',
+  faucet: 'Vòi nước',
+  file_cabinet: 'Tủ hồ sơ',
+  folding_chair: 'Ghế gấp',
+  highchair: 'Ghế trẻ em',
+  kettle: 'Ấm đun nước',
+  kitchen_sink: 'Bồn rửa bếp',
+  kitchen_table: 'Bàn bếp',
+  lamp: 'Đèn',
+  mattress: 'Nệm',
+  microwave_oven: 'Lò vi sóng',
+  mirror: 'Gương',
+  oven: 'Lò nướng',
+  recliner: 'Ghế tựa',
+  rocking_chair: 'Ghế bập bênh',
+  sink: 'Bồn rửa',
+  sofa: 'Sofa',
+  sofa_bed: 'Sofa giường',
+  stool: 'Ghế đẩu',
+  stove: 'Bếp',
+  table: 'Bàn',
+  table_lamp: 'Đèn bàn',
+  television_set: 'Tivi',
+  toaster_oven: 'Lò nướng mini',
+  vacuum_cleaner: 'Máy hút bụi',
+  wardrobe: 'Tủ quần áo',
+  water_faucet: 'Vòi nước',
+};
+
 const formatCategoryName = (name = '') => name
-  .replace(/[_-]+/g, ' ')
-  .replace(/\b\w/g, (character) => character.toUpperCase());
+  ? CATEGORY_LABELS[name] || name
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+  : '';
 
 const parseResponse = async (response) => {
   const contentType = response.headers.get('content-type') || '';
@@ -47,11 +95,16 @@ const unwrapData = (payload) => payload?.data ?? payload;
 const normalizeProduct = (product) => ({
   ...product,
   id: product?.id,
-  title: product?.title || 'Untitled product',
+  title: product?.title || 'Sản phẩm chưa đặt tên',
   description: product?.description || '',
   price: Number(product?.price ?? 0),
   imageUrl: product?.imageUrl || DEFAULT_PRODUCT_IMAGE,
-  categoryName: product?.categoryName || '',
+  imageUrls: Array.isArray(product?.imageUrls) && product.imageUrls.length
+    ? product.imageUrls
+    : [product?.imageUrl || DEFAULT_PRODUCT_IMAGE],
+  sellerDistrict: product?.sellerDistrict || '',
+  sellerProvince: product?.sellerProvince || '',
+  categoryName: formatCategoryName(product?.categoryName || ''),
   likeCount: Number(product?.likeCount || 0),
   aiMetadata: Array.isArray(product?.aiMetadata) ? product.aiMetadata : [],
 });
@@ -79,12 +132,28 @@ export const apiRegister = async (registration) => unwrapData(
   await jsonRequest('/auth/register', 'POST', registration),
 );
 
+export const apiForgotPassword = async (email) => unwrapData(
+  await jsonRequest('/auth/forgot-password', 'POST', { email }),
+);
+
 export const apiLogin = async (usernameOrEmail, password) => saveAccessToken(
   await jsonRequest('/auth/login', 'POST', { usernameOrEmail, password }),
 );
 
 export const apiGetProfile = async () => unwrapData(
   await request('/users/profile', {}, true),
+);
+
+export const apiFetchProvinces = async () => unwrapData(
+  await request('/locations/provinces'),
+);
+
+export const apiFetchDistricts = async (provinceCode) => unwrapData(
+  await request(`/locations/districts?provinceCode=${encodeURIComponent(provinceCode)}`),
+);
+
+export const apiFetchWards = async (provinceCode, districtCode) => unwrapData(
+  await request(`/locations/wards?provinceCode=${encodeURIComponent(provinceCode)}&districtCode=${encodeURIComponent(districtCode)}`),
 );
 
 export const apiUpdateProfile = async (profileData) => unwrapData(
@@ -140,6 +209,15 @@ export const apiAnalyzeImage = async (file) => {
   }, true));
 };
 
+export const apiPrepareListing = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return unwrapData(await request('/products/prepare-listing', {
+    method: 'POST',
+    body: formData,
+  }, true));
+};
+
 export const apiCreateProduct = async (formData) => {
   const payload = await request('/products', { method: 'POST', body: formData }, true);
   return { ...normalizeProduct(unwrapData(payload)), apiMessage: payload?.message };
@@ -187,16 +265,71 @@ export const apiFetchMessages = async (participantId, productId) => {
   return unwrapData(await request(`/interactions/messages?${params.toString()}`, {}, true));
 };
 
+export const apiFetchConversations = async () => unwrapData(
+  await request('/interactions/conversations', {}, true),
+);
+
 export const apiFetchNotifications = async () => unwrapData(
   await request('/interactions/notifications', {}, true),
 );
 
-export const apiCreateOrder = async (productId) => unwrapData(
-  await jsonRequest('/orders', 'POST', { productId }, true),
+export const apiCreateOrder = async (productId, deliveryMethod = 'VIETTEL_POST', offerId = null) => unwrapData(
+  await jsonRequest('/orders', 'POST', {
+    productId,
+    deliveryMethod,
+    ...(offerId ? { offerId } : {}),
+  }, true),
+);
+
+export const apiEstimateShipping = async (productId, deliveryMethod = 'VIETTEL_POST') => {
+  const params = new URLSearchParams({
+    productId: String(productId),
+    deliveryMethod,
+  });
+  return unwrapData(await request(`/orders/shipping-estimate?${params.toString()}`, {}, true));
+};
+
+export const apiEstimateGuestShipping = async ({
+  productId,
+  deliveryMethod = 'VIETTEL_POST',
+  province,
+  district,
+}) => {
+  const params = new URLSearchParams({
+    productId: String(productId),
+    deliveryMethod,
+    province,
+    district,
+  });
+  return unwrapData(await request(`/orders/shipping-estimate/guest?${params.toString()}`));
+};
+
+export const apiCreateOffer = async ({ productId, discountPercent }) => unwrapData(
+  await jsonRequest('/orders/offers', 'POST', { productId, discountPercent }, true),
+);
+
+export const apiFetchOffers = async () => unwrapData(
+  await request('/orders/offers', {}, true),
+);
+
+export const apiAcceptOffer = async (id) => unwrapData(
+  await request(`/orders/offers/${id}/accept`, { method: 'POST' }, true),
+);
+
+export const apiRejectOffer = async (id) => unwrapData(
+  await request(`/orders/offers/${id}/reject`, { method: 'POST' }, true),
+);
+
+export const apiCancelOffer = async (id) => unwrapData(
+  await request(`/orders/offers/${id}/cancel`, { method: 'POST' }, true),
 );
 
 export const apiFetchOrder = async (id) => unwrapData(
   await request(`/orders/${id}`, {}, true),
+);
+
+export const apiFetchOrders = async () => unwrapData(
+  await request('/orders', {}, true),
 );
 
 export const apiConfirmOrder = async (id) => unwrapData(
@@ -205,6 +338,10 @@ export const apiConfirmOrder = async (id) => unwrapData(
 
 export const apiCompleteOrder = async (id) => unwrapData(
   await request(`/orders/${id}/complete`, { method: 'POST' }, true),
+);
+
+export const apiCancelOrder = async (id) => unwrapData(
+  await request(`/orders/${id}/cancel`, { method: 'POST' }, true),
 );
 
 export const apiCreateReview = async ({ orderId, rating, comment }) => unwrapData(

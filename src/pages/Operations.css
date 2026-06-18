@@ -21,8 +21,13 @@
   line-height: 1.15;
 }
 
-.operations-header p:not(.eyebrow), .muted, .context-note {
+.operations-header p:not(.eyebrow), .muted {
   color: var(--text-muted);
+}
+
+.operations-header p,
+.eyebrow {
+  display: none !important;
 }
 
 .eyebrow {
@@ -221,8 +226,12 @@
 .order-main { display: grid; gap: 16px; }
 .review-form { display: grid; align-content: start; gap: 12px; padding-left: 24px; border-left: 1px solid var(--border); }
 .review-form h3 { display: flex; align-items: center; gap: 7px; }
-.context-note { margin: -6px 0 18px; font-size: 12px; }
-
+.offer-center { margin: 22px 0 28px; }
+.offer-columns { align-items: start; margin-top: 0; }
+.subsection-title { margin: 0 0 10px; font-size: 15px; }
+.offer-row { display: grid; gap: 12px; }
+.offer-row h3 { margin: 0 0 4px; font-size: 16px; }
+.offer-row p { color: var(--text-muted); font-size: 12px; }
 .conversation-picker { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 10px; margin-bottom: 18px; }
 .chat-shell { overflow: hidden; border: 1px solid var(--border-dark); border-radius: 8px; background: var(--surface); }
 .chat-status { display: flex; align-items: center; gap: 7px; padding: 11px 15px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 700; }

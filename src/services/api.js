@@ -395,7 +395,7 @@ export const apiProcessReport = async (reportId, action) => unwrapData(
 
 export const getWebSocketUrl = () => {
   const token = getToken();
-  const url = new URL(API_BASE_URL);
+  const url = new URL(API_BASE_URL, window.location.origin);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.pathname = `${url.pathname}/interactions/ws`.replace(/\/+/g, '/');
   url.search = token ? new URLSearchParams({ token }).toString() : '';

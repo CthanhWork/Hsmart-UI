@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/v1/(.*)",
+      "destination": "https://instance-20260601-031713.tail0e1958.ts.net/api/v1/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

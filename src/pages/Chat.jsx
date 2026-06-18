@@ -16,8 +16,48 @@ import { createChatClient } from '../services/chatClient';
 import './Chat.css';
 
 const CONVERSATION_STORAGE_KEY = 'hsmart_chat_conversations';
+const OPTIMISTIC_MESSAGE_WINDOW_MS = 15000;
 
 const conversationKey = (participantId, productId) => `${participantId || ''}:${productId || ''}`;
+
+const normalizeMessage = (message) => ({
+  ...message,
+  senderId: String(message?.senderId || ''),
+  receiverId: String(message?.receiverId || ''),
+  productId: String(message?.productId || ''),
+});
+
+const isLikelySameMessage = (first, second) => {
+  const normalizedFirst = normalizeMessage(first);
+  const normalizedSecond = normalizeMessage(second);
+
+  if (
+    normalizedFirst.senderId !== normalizedSecond.senderId
+    || normalizedFirst.receiverId !== normalizedSecond.receiverId
+    || normalizedFirst.productId !== normalizedSecond.productId
+    || String(normalizedFirst.content || '').trim() !== String(normalizedSecond.content || '').trim()
+  ) {
+    return false;
+  }
+
+  if (normalizedFirst.id && normalizedSecond.id && normalizedFirst.id === normalizedSecond.id) {
+    return true;
+  }
+
+  const firstTime = new Date(normalizedFirst.timestamp || 0).getTime();
+  const secondTime = new Date(normalizedSecond.timestamp || 0).getTime();
+
+  if (!Number.isFinite(firstTime) || !Number.isFinite(secondTime)) return false;
+  return Math.abs(firstTime - secondTime) <= OPTIMISTIC_MESSAGE_WINDOW_MS;
+};
+
+const dedupeMessages = (items) => items.reduce((unique, item) => {
+  const normalized = normalizeMessage(item);
+  if (unique.some((existing) => isLikelySameMessage(existing, normalized))) {
+    return unique;
+  }
+  return [...unique, normalized];
+}, []);
 
 const readStoredConversations = () => {
   try {
@@ -67,6 +107,9 @@ const Chat = () => {
   const clientRef = useRef(null);
   const messageListRef = useRef(null);
   const lastScrolledConversationRef = useRef('');
+  const currentUserIdRef = useRef('');
+  const activeParticipantIdRef = useRef('');
+  const activeProductIdRef = useRef('');
 
   const currentUserId = String(user?.username || user?.id || '');
   const activeParticipantId = searchParams.get('participantId') || '';
@@ -92,6 +135,12 @@ const Chat = () => {
       item.lastMessage,
     ].some((value) => String(value || '').toLowerCase().includes(filter)));
   }, [conversationFilter, conversations]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+    activeParticipantIdRef.current = activeParticipantId;
+    activeProductIdRef.current = activeProductId;
+  }, [activeParticipantId, activeProductId, currentUserId]);
 
   const upsertConversation = (nextConversation, { promote = true } = {}) => {
     setConversations((current) => {
@@ -120,24 +169,26 @@ const Chat = () => {
       userId: currentUserId,
       onConnect: () => setConnected(true),
       onMessage: (message) => {
-        const participantId = String(message.senderId) === currentUserId
-          ? String(message.receiverId || activeParticipantId)
-          : String(message.senderId || activeParticipantId);
-        const productId = String(message.productId || activeProductId);
+        const nextMessage = normalizeMessage(message);
+        const participantId = nextMessage.senderId === currentUserIdRef.current
+          ? String(nextMessage.receiverId || activeParticipantIdRef.current)
+          : String(nextMessage.senderId || activeParticipantIdRef.current);
+        const productId = String(nextMessage.productId || activeProductIdRef.current);
 
         if (participantId && productId) {
           upsertConversation({
             participantId,
             productId,
-            lastMessage: message.content,
-            updatedAt: message.timestamp || new Date().toISOString(),
+            lastMessage: nextMessage.content,
+            updatedAt: nextMessage.timestamp || new Date().toISOString(),
           });
         }
 
-        const isActiveProduct = String(message.productId) === String(activeProductId);
-        const isActiveParticipant = [message.senderId, message.receiverId].some((id) => String(id) === String(activeParticipantId));
+        const isActiveProduct = productId === String(activeProductIdRef.current);
+        const isActiveParticipant = [nextMessage.senderId, nextMessage.receiverId]
+          .some((id) => String(id) === String(activeParticipantIdRef.current));
         if (isActiveProduct && isActiveParticipant) {
-          setMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
+          setMessages((current) => dedupeMessages([...current, nextMessage]));
         }
       },
       onError: (requestError) => setError(requestError.message),
@@ -149,7 +200,7 @@ const Chat = () => {
       setConnected(false);
       client.deactivate();
     };
-  }, [activeParticipantId, activeProductId, currentUserId]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -234,7 +285,7 @@ const Chat = () => {
 
         if (cancelled) return;
 
-        const nextMessages = Array.isArray(messageData) ? messageData : [];
+        const nextMessages = dedupeMessages(Array.isArray(messageData) ? messageData : []);
         const latestMessage = nextMessages.at(-1);
         setMessages(nextMessages);
         upsertConversation({
@@ -292,14 +343,14 @@ const Chat = () => {
     const trimmedContent = content.trim();
     if (!trimmedContent || !clientRef.current?.connected || !activeParticipantId || !activeProductId) return;
 
-    const optimisticMessage = {
+    const optimisticMessage = normalizeMessage({
       id: `local-${Date.now()}`,
       senderId: currentUserId,
       receiverId: activeParticipantId,
-      productId: Number(activeProductId),
+      productId: activeProductId,
       content: trimmedContent,
       timestamp: new Date().toISOString(),
-    };
+    });
 
     clientRef.current.publish({
       destination: '/app/chat.send',
@@ -310,7 +361,7 @@ const Chat = () => {
       }),
     });
 
-    setMessages((current) => [...current, optimisticMessage]);
+    setMessages((current) => dedupeMessages([...current, optimisticMessage]));
     upsertConversation({
       participantId: activeParticipantId,
       productId: activeProductId,
@@ -509,8 +560,8 @@ const Chat = () => {
                   ) : null}
                 </div>
 
-                <form className="message-composer marketplace-composer" onSubmit={send}>
-                  <div className="composer-input">
+                <form className="chat-composer" onSubmit={send}>
+                  <div className="chat-composer-input">
                     <input
                       value={content}
                       onChange={(event) => setContent(event.target.value)}

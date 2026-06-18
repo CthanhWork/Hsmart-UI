@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, X } from 'lucide-react';
 import LocationFields from '../common/LocationFields';
 import { useUser } from '../../context/UserContext';
+import { useToast } from '../../context/ToastContext';
 import { apiForgotPassword, apiRegister } from '../../services/api';
 import './AuthModal.css';
 
@@ -34,12 +35,18 @@ const modeContent = {
 
 const AuthModal = ({ isOpen, onClose }) => {
   const { login } = useUser();
+  const toast = useToast();
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState(emptyRegisterForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!success) return;
+    toast.info(success);
+  }, [success, toast]);
 
   if (!isOpen) {
     return null;

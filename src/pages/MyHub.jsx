@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Edit3, Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { apiDeleteProduct, apiFetchProducts } from '../services/api';
 import './MyHub.css';
@@ -14,6 +15,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', {
 
 const MyHub = () => {
   const { user } = useUser();
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [error, setError] = useState('');
 
@@ -31,6 +33,7 @@ const MyHub = () => {
     try {
       await apiDeleteProduct(product.id);
       setProducts((current) => current.filter((item) => item.id !== product.id));
+      toast.success(`Đã xóa tin đăng "${product.title}".`);
     } catch (requestError) {
       setError(requestError.message);
     }

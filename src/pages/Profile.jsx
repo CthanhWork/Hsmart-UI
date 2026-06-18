@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Save } from 'lucide-react';
 import LocationFields from '../components/common/LocationFields';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { apiUpdateProfile } from '../services/api';
 import './Operations.css';
@@ -17,6 +18,7 @@ const buildProfileForm = (user) => ({
 
 const Profile = () => {
   const { user, refreshProfile } = useUser();
+  const toast = useToast();
   const userForm = useMemo(() => buildProfileForm(user), [user]);
   const [form, setForm] = useState(userForm);
   const [feedback, setFeedback] = useState('');
@@ -37,6 +39,7 @@ const Profile = () => {
     try {
       await apiUpdateProfile(form);
       await refreshProfile();
+      toast.success('Cập nhật hồ sơ thành công.');
       setFeedback('Đã cập nhật hồ sơ thành công.');
     } catch (requestError) {
       setError(requestError.message);

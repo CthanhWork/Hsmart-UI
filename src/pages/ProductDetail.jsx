@@ -18,6 +18,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ProductCard from '../components/common/ProductCard';
 import StatusBadge from '../components/common/StatusBadge';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import {
   apiCreateOffer,
@@ -40,6 +41,7 @@ const formatPrice = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const { isAuthenticated, user } = useUser();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -207,6 +209,7 @@ const ProductDetail = () => {
       setIsOrdering(true);
       const order = await apiCreateOrder(product.id, deliveryMethod);
       rememberOrderId(order.id);
+      toast.success(`Đặt hàng thành công. Mã đơn của bạn là #${order.id}.`);
       navigate(`/orders?orderId=${order.id}`);
     } catch (requestError) {
       setError(requestError.message);
@@ -226,6 +229,7 @@ const ProductDetail = () => {
         discountPercent: selectedDiscountPercent,
       });
       setShowOfferConfirm(false);
+      toast.success(`Đã gửi trả giá ${formatPrice(offer.offerPrice)} cho người bán.`);
       setFeedback(
         `Đã gửi đề nghị ${formatPrice(offer.offerPrice)} cho người bán. Đề nghị sẽ tự hết hạn sau 24 giờ.`,
       );
@@ -242,6 +246,7 @@ const ProductDetail = () => {
 
     try {
       const response = await apiToggleWishlist(product.id);
+      toast.success(response?.message || 'Đã cập nhật danh sách yêu thích.');
       setFeedback(response?.message || 'Đã cập nhật danh sách yêu thích.');
     } catch (requestError) {
       setError(requestError.message);
@@ -257,6 +262,7 @@ const ProductDetail = () => {
     try {
       await apiSubmitReport(product.id, reportReason.trim());
       setReportReason('');
+      toast.success('Báo cáo đã được gửi để quản trị viên xem xét.');
       setFeedback('Báo cáo đã được gửi để quản trị viên xem xét.');
     } catch (requestError) {
       setError(requestError.message);

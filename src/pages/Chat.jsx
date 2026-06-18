@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessageCircle, Package, Search, Send } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import {
   apiAcceptOffer,
@@ -94,6 +95,7 @@ const formatMessageTime = (timestamp) => {
 };
 
 const Chat = () => {
+  const toast = useToast();
   const { user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState(readStoredConversations);
@@ -381,6 +383,7 @@ const Chat = () => {
           ? await apiRejectOffer(offer.id)
           : await apiCancelOffer(offer.id);
       setOffers((current) => current.map((item) => (item.id === next.id ? next : item)));
+      toast.success('Đã cập nhật lời đề nghị.');
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -388,10 +391,11 @@ const Chat = () => {
 
   const checkoutOffer = async (offer) => {
     try {
-      await apiCreateOrder(offer.productId, 'VIETTEL_POST', offer.id);
+      const order = await apiCreateOrder(offer.productId, 'VIETTEL_POST', offer.id);
       setOffers((current) => current.map((item) => (
         item.id === offer.id ? { ...item, status: 'ORDERED' } : item
       )));
+      toast.success(`Đặt hàng thành công. Mã đơn của bạn là #${order.id}.`);
     } catch (requestError) {
       setError(requestError.message);
     }

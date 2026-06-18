@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Save } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 import { apiFetchCategories, apiFetchProductById, apiUpdateProduct } from '../services/api';
 import './Operations.css';
 
 const ProductEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', price: '', categoryId: '', status: '' });
   const [error, setError] = useState('');
@@ -34,6 +36,7 @@ const ProductEdit = () => {
     });
     try {
       await apiUpdateProduct(id, body);
+      toast.success('Cập nhật tin đăng thành công.');
       navigate('/listings');
     } catch (requestError) {
       setError(requestError.message);

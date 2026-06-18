@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Sparkles, X } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import {
   apiCreateProduct,
@@ -31,6 +32,7 @@ const revokeImage = (image) => {
 
 const SmartUpload = () => {
   const { isAuthenticated } = useUser();
+  const toast = useToast();
   const [categories, setCategories] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]);
   const [previewImageId, setPreviewImageId] = useState('');
@@ -200,6 +202,7 @@ const SmartUpload = () => {
       formData.append('description', form.description.trim());
 
       const createdProduct = await apiCreateProduct(formData);
+      toast.success(createdProduct.apiMessage || 'Đăng tin thành công. Sản phẩm của bạn đã được gửi lên hệ thống.');
       setMessage(createdProduct.apiMessage || 'Sản phẩm đã được gửi lên hệ thống.');
       resetForm();
     } catch (requestError) {

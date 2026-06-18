@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Star } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
+import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import {
   apiAcceptOffer,
@@ -51,6 +52,7 @@ const actionMessage = (action) => {
 
 const Orders = () => {
   const { user } = useUser();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderId, setOrderId] = useState(searchParams.get('orderId') || '');
   const [orders, setOrders] = useState([]);
@@ -119,6 +121,7 @@ const Orders = () => {
           ? await apiCancelOrder(id)
           : await apiCompleteOrder(id);
       setOrders((current) => current.map((order) => (order.id === next.id ? next : order)));
+      toast.success(actionMessage(action));
       setFeedback(actionMessage(action));
     } catch (requestError) {
       setError(requestError.message);
@@ -134,6 +137,7 @@ const Orders = () => {
           ? await apiRejectOffer(offer.id)
           : await apiCancelOffer(offer.id);
       setOffers((current) => current.map((item) => (item.id === next.id ? next : item)));
+      toast.success('Đã cập nhật lời đề nghị.');
       setFeedback('Đã cập nhật lời đề nghị.');
     } catch (requestError) {
       setError(requestError.message);
@@ -149,6 +153,7 @@ const Orders = () => {
       setOffers((current) => current.map((item) => (
         item.id === offer.id ? { ...item, status: 'ORDERED' } : item
       )));
+      toast.success(`Đặt hàng thành công. Mã đơn của bạn là #${order.id}.`);
       setFeedback('Đã tạo đơn hàng bằng giá ưu đãi.');
     } catch (requestError) {
       setError(requestError.message);
@@ -177,6 +182,7 @@ const Orders = () => {
         rating: Number(draft.rating),
         comment: draft.comment,
       });
+      toast.success('Đã gửi đánh giá thành công.');
       setFeedback('Đã gửi đánh giá thành công.');
       setReviewByOrder((current) => ({
         ...current,

@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { apiLogin, apiGetProfile } from '../services/api';
+import { useToast } from './ToastContext';
 
 const UserContext = createContext();
 
@@ -7,6 +8,7 @@ const UserContext = createContext();
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('hsmart_token') || null);
   const [loading, setLoading] = useState(true);
@@ -36,12 +38,15 @@ export const UserProvider = ({ children }) => {
   const login = async (username, password) => {
     const response = await apiLogin(username, password);
     setToken(response.accessToken);
+    let nextUser = response.user;
     if (response.user) {
       setUser(response.user);
     } else {
       const profile = await apiGetProfile();
+      nextUser = profile;
       setUser(profile);
     }
+    toast.success(`Đăng nhập thành công. Chào mừng ${nextUser?.fullName || nextUser?.username || 'bạn'} quay lại!`);
     return response;
   };
 
@@ -55,6 +60,7 @@ export const UserProvider = ({ children }) => {
     localStorage.removeItem('hsmart_token');
     setToken(null);
     setUser(null);
+    toast.info('Bạn đã đăng xuất khỏi H-Smart.');
   };
 
   const value = {

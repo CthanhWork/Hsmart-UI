@@ -14,7 +14,9 @@ import Orders from './pages/Orders';
 import ProductDetail from './pages/ProductDetail';
 import ProductEdit from './pages/ProductEdit';
 import Profile from './pages/Profile';
+import ResetPassword from './pages/ResetPassword';
 import SmartUpload from './pages/SmartUpload';
+import VerifyEmail from './pages/VerifyEmail';
 import Wishlist from './pages/Wishlist';
 
 const protectedPage = (page, adminOnly = false) => (
@@ -48,6 +50,8 @@ function App() {
             <Route path="/profile" element={protectedPage(<Profile />)} />
             <Route path="/wishlist" element={protectedPage(<Wishlist />)} />
             <Route path="/orders" element={protectedPage(<Orders />)} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/notifications" element={protectedPage(<Notifications />)} />
             <Route path="/chat" element={protectedPage(<Chat />)} />
             <Route path="/admin" element={protectedPage(<Admin />, true)} />

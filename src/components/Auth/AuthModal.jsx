@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import LocationFields from '../common/LocationFields';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../context/ToastContext';
-import { apiForgotPassword, apiRegister } from '../../services/api';
+import {
+  apiForgotPassword,
+  apiRegister,
+  apiResendVerification,
+  apiVerifyEmail,
+} from '../../services/api';
 import './AuthModal.css';
 
 const emptyRegisterForm = {
@@ -16,6 +22,7 @@ const emptyRegisterForm = {
   districtCode: '',
   wardCode: '',
   streetDetail: '',
+  verificationToken: '',
 };
 
 const modeContent = {
@@ -31,11 +38,16 @@ const modeContent = {
     title: 'Đặt lại mật khẩu',
     submit: 'Gửi email đặt lại',
   },
+  verify: {
+    title: 'Xác minh email',
+    submit: 'Xác minh tài khoản',
+  },
 };
 
 const AuthModal = ({ isOpen, onClose }) => {
   const { login } = useUser();
   const toast = useToast();
+  const navigate = useNavigate();
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState(emptyRegisterForm);
   const [error, setError] = useState('');
@@ -65,6 +77,25 @@ const AuthModal = ({ isOpen, onClose }) => {
     setSuccess('');
   };
 
+  const handleResendVerification = async () => {
+    if (!formData.email.trim()) {
+      setError('Vui lòng nhập email đã đăng ký để gửi lại xác minh.');
+      return;
+    }
+
+    try {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+      await apiResendVerification(formData.email.trim());
+      setSuccess('Đã gửi lại email xác minh. Hãy kiểm tra cả hộp thư spam nếu chưa thấy.');
+    } catch (requestError) {
+      setError(requestError.message || 'Không thể gửi lại email xác minh lúc này.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -84,8 +115,9 @@ const AuthModal = ({ isOpen, onClose }) => {
           wardCode: formData.wardCode,
           streetDetail: formData.streetDetail,
         });
-        setSuccess('Tài khoản đã được tạo. Vui lòng kiểm tra email để xác minh trước khi đăng nhập.');
-        setMode('login');
+
+        setSuccess('Tài khoản đã được tạo. Hãy kiểm tra email để lấy mã xác minh hoặc bấm link kích hoạt.');
+        setMode('verify');
         setFormData((current) => ({
           ...emptyRegisterForm,
           username: current.username,
@@ -97,18 +129,105 @@ const AuthModal = ({ isOpen, onClose }) => {
       if (mode === 'forgot') {
         await apiForgotPassword(formData.email);
         setSuccess('Nếu tài khoản tồn tại, email đặt lại mật khẩu đã được gửi.');
+        return;
+      }
+
+      if (mode === 'verify') {
+        await apiVerifyEmail(formData.verificationToken.trim());
+        setSuccess('Email đã được xác minh. Bạn có thể đăng nhập ngay bây giờ.');
         setMode('login');
+        setFormData((current) => ({
+          ...current,
+          password: '',
+          verificationToken: '',
+        }));
         return;
       }
 
       await login(formData.username, formData.password);
       onClose();
     } catch (requestError) {
-      setError(requestError.message || 'Không thể hoàn tất xác thực. Vui lòng thử lại.');
+      const nextMessage = requestError.message || 'Không thể hoàn tất xác thực. Vui lòng thử lại.';
+      setError(nextMessage);
+
+      if (
+        mode === 'login'
+        && /verify|verified|xác minh|chưa kích hoạt/i.test(nextMessage)
+      ) {
+        setSuccess('Tài khoản có vẻ chưa xác minh. Bạn có thể nhập mã xác minh ngay bên dưới.');
+        setMode('verify');
+        setFormData((current) => ({
+          ...current,
+          email: current.email || current.username,
+        }));
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const renderLoginOrForgotFields = () => (
+    <>
+      {mode !== 'forgot' ? (
+        <div className="form-group">
+          <label htmlFor="auth-username">Tên đăng nhập hoặc email</label>
+          <input
+            id="auth-username"
+            type="text"
+            name="username"
+            required
+            autoComplete="username"
+            value={formData.username}
+            onChange={handleChange}
+            className="form-input"
+          />
+        </div>
+      ) : null}
+
+      {mode === 'forgot' ? (
+        <div className="form-group">
+          <label htmlFor="auth-email">Email</label>
+          <input
+            id="auth-email"
+            type="email"
+            name="email"
+            required
+            autoComplete="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="form-input"
+          />
+        </div>
+      ) : null}
+
+      {mode !== 'forgot' ? (
+        <div className="form-group auth-password-group">
+          <label htmlFor="auth-password">Mật khẩu</label>
+          <div className="auth-password-control">
+            <input
+              id="auth-password"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              required
+              minLength={8}
+              autoComplete="current-password"
+              value={formData.password}
+              onChange={handleChange}
+              className="form-input"
+            />
+            <button
+              type="button"
+              className="auth-password-toggle"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="auth-overlay" role="presentation">
@@ -125,7 +244,7 @@ const AuthModal = ({ isOpen, onClose }) => {
           </aside>
 
           <div className="auth-content-panel">
-            {mode !== 'forgot' ? (
+            {mode === 'login' || mode === 'register' ? (
               <div className="auth-mode-switcher" aria-label="Chọn chế độ xác thực">
                 <button
                   type="button"
@@ -160,9 +279,9 @@ const AuthModal = ({ isOpen, onClose }) => {
                     </div>
                     <div className="auth-field-grid">
                       <div className="form-group">
-                        <label htmlFor="auth-username">Tên đăng nhập</label>
+                        <label htmlFor="auth-register-username">Tên đăng nhập</label>
                         <input
-                          id="auth-username"
+                          id="auth-register-username"
                           type="text"
                           name="username"
                           required
@@ -174,9 +293,9 @@ const AuthModal = ({ isOpen, onClose }) => {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor="auth-email">Email</label>
+                        <label htmlFor="auth-register-email">Email</label>
                         <input
-                          id="auth-email"
+                          id="auth-register-email"
                           type="email"
                           name="email"
                           required
@@ -188,10 +307,10 @@ const AuthModal = ({ isOpen, onClose }) => {
                       </div>
 
                       <div className="form-group auth-password-group auth-field-full">
-                        <label htmlFor="auth-password">Mật khẩu</label>
+                        <label htmlFor="auth-register-password">Mật khẩu</label>
                         <div className="auth-password-control">
                           <input
-                            id="auth-password"
+                            id="auth-register-password"
                             type={showPassword ? 'text' : 'password'}
                             name="password"
                             required
@@ -269,73 +388,62 @@ const AuthModal = ({ isOpen, onClose }) => {
                     </div>
                   </section>
                 </>
-              ) : (
+              ) : mode === 'verify' ? (
                 <>
-                  {mode !== 'forgot' ? (
-                    <div className="form-group">
-                      <label htmlFor="auth-username">Tên đăng nhập hoặc email</label>
-                      <input
-                        id="auth-username"
-                        type="text"
-                        name="username"
-                        required
-                        autoComplete="username"
-                        value={formData.username}
-                        onChange={handleChange}
-                        className="form-input"
-                      />
-                    </div>
-                  ) : null}
+                  <div className="form-group">
+                    <label htmlFor="auth-verify-email">Email đã đăng ký</label>
+                    <input
+                      id="auth-verify-email"
+                      type="email"
+                      name="email"
+                      required
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="Nhập email để có thể gửi lại xác minh"
+                    />
+                  </div>
 
-                  {mode === 'forgot' ? (
-                    <div className="form-group">
-                      <label htmlFor="auth-email">Email</label>
-                      <input
-                        id="auth-email"
-                        type="email"
-                        name="email"
-                        required
-                        autoComplete="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="form-input"
-                      />
-                    </div>
-                  ) : null}
-
-                  {mode !== 'forgot' ? (
-                    <div className="form-group auth-password-group">
-                      <label htmlFor="auth-password">Mật khẩu</label>
-                      <div className="auth-password-control">
-                        <input
-                          id="auth-password"
-                          type={showPassword ? 'text' : 'password'}
-                          name="password"
-                          required
-                          minLength={8}
-                          autoComplete="current-password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          className="form-input"
-                        />
-                        <button
-                          type="button"
-                          className="auth-password-toggle"
-                          onClick={() => setShowPassword((current) => !current)}
-                          aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                        >
-                          {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+                  <div className="form-group">
+                    <label htmlFor="auth-verification-token">Mã xác minh / token</label>
+                    <input
+                      id="auth-verification-token"
+                      type="text"
+                      name="verificationToken"
+                      required
+                      autoComplete="one-time-code"
+                      value={formData.verificationToken}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="Dán mã hoặc token từ email"
+                    />
+                  </div>
                 </>
-              )}
+              ) : renderLoginOrForgotFields()}
 
               <button type="submit" className="btn btn-primary w-full auth-submit" disabled={loading}>
                 {loading ? 'Đang xử lý...' : content.submit}
               </button>
             </form>
+
+            {mode === 'verify' ? (
+              <div className="auth-inline-actions">
+                <button type="button" className="auth-switch" onClick={handleResendVerification} disabled={loading}>
+                  Gửi lại email xác minh
+                </button>
+                <button
+                  type="button"
+                  className="auth-switch"
+                  onClick={() => {
+                    onClose();
+                    navigate('/verify-email');
+                  }}
+                >
+                  Mở trang xác minh đầy đủ
+                </button>
+              </div>
+            ) : null}
 
             <div className="auth-footer">
               {mode === 'login' ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
@@ -346,11 +454,32 @@ const AuthModal = ({ isOpen, onClose }) => {
               >
                 {mode === 'login' ? 'Đăng ký' : 'Đăng nhập'}
               </button>
+
               {mode === 'login' ? (
                 <>
                   <span className="auth-footer-dot" aria-hidden="true">·</span>
                   <button type="button" className="auth-switch" onClick={() => switchMode('forgot')}>
                     Quên mật khẩu
+                  </button>
+                  <span className="auth-footer-dot" aria-hidden="true">·</span>
+                  <button type="button" className="auth-switch" onClick={() => switchMode('verify')}>
+                    Nhập mã xác minh
+                  </button>
+                </>
+              ) : null}
+
+              {mode === 'forgot' ? (
+                <>
+                  <span className="auth-footer-dot" aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    className="auth-switch"
+                    onClick={() => {
+                      onClose();
+                      navigate('/reset-password');
+                    }}
+                  >
+                    Đã có token đặt lại
                   </button>
                 </>
               ) : null}

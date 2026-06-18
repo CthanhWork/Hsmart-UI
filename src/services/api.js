@@ -153,6 +153,18 @@ export const apiForgotPassword = async (email) => unwrapData(
   await jsonRequest('/auth/forgot-password', 'POST', { email }),
 );
 
+export const apiVerifyEmail = async (token) => unwrapData(
+  await jsonRequest('/auth/verify-email', 'POST', { token }),
+);
+
+export const apiResendVerification = async (email) => unwrapData(
+  await jsonRequest('/auth/resend-verification', 'POST', { email }),
+);
+
+export const apiResetPassword = async (token, newPassword) => unwrapData(
+  await jsonRequest('/auth/reset-password', 'POST', { token, newPassword }),
+);
+
 export const apiLogin = async (usernameOrEmail, password) => saveAccessToken(
   await jsonRequest('/auth/login', 'POST', { usernameOrEmail, password }),
 );

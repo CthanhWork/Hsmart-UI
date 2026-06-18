@@ -1,4 +1,5 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import AssistantWidget from './components/Chat/AssistantWidget';
 import Footer from './components/Layout/Footer';
 import Navbar from './components/Layout/Navbar';
@@ -20,10 +21,21 @@ const protectedPage = (page, adminOnly = false) => (
   <ProtectedRoute adminOnly={adminOnly}>{page}</ProtectedRoute>
 );
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
+
+  return null;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <div className="page-container">
+        <ScrollToTop />
         <Navbar />
         <main className="app-main">
           <Routes>

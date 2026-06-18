@@ -1,23 +1,41 @@
 import { useEffect, useState } from 'react';
 import { Search, Star } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
 import { useUser } from '../context/UserContext';
 import {
   apiAcceptOffer,
-  apiCancelOrder,
   apiCancelOffer,
+  apiCancelOrder,
   apiCompleteOrder,
   apiConfirmOrder,
-  apiCreateReview,
   apiCreateOrder,
+  apiCreateReview,
   apiFetchOrder,
-  apiFetchOrders,
   apiFetchOffers,
+  apiFetchOrders,
   apiRejectOffer,
 } from '../services/api';
 import { getRecentOrderIds, rememberOrderId } from '../services/orderHistory';
 import './Operations.css';
+
+const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+}).format(Number(value || 0));
+
+const formatDateTime = (value) => {
+  if (!value) return 'Không rõ';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Không rõ';
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(parsed);
+};
 
 const deliveryMethodLabel = (method) => {
   if (method === 'GHTK') return 'Giao Hàng Tiết Kiệm';
@@ -38,7 +56,7 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [review, setReview] = useState({ rating: '5', comment: '' });
+  const [reviewByOrder, setReviewByOrder] = useState({});
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
 
@@ -55,10 +73,11 @@ const Orders = () => {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+
     Promise.all([apiFetchOrders(), apiFetchOffers().catch(() => [])])
       .then(([data, offerData]) => {
         if (!active) return;
+
         const nextOrders = Array.isArray(data) ? data : [];
         setOrders(nextOrders);
         setOffers(Array.isArray(offerData) ? offerData : []);
@@ -70,6 +89,7 @@ const Orders = () => {
       .finally(() => {
         if (active) setLoading(false);
       });
+
     return () => {
       active = false;
     };
@@ -79,6 +99,7 @@ const Orders = () => {
     const ids = searchParams.get('orderId')
       ? [searchParams.get('orderId'), ...getRecentOrderIds()]
       : getRecentOrderIds();
+
     [...new Set(ids)].forEach((id) => loadOrder(id, true));
   }, [searchParams]);
 
@@ -134,12 +155,33 @@ const Orders = () => {
     }
   };
 
+  const updateReviewDraft = (orderIdValue, field, value) => {
+    setReviewByOrder((current) => ({
+      ...current,
+      [orderIdValue]: {
+        rating: current[orderIdValue]?.rating || '5',
+        comment: current[orderIdValue]?.comment || '',
+        [field]: value,
+      },
+    }));
+  };
+
+  const getReviewDraft = (orderIdValue) => reviewByOrder[orderIdValue] || { rating: '5', comment: '' };
+
   const submitReview = async (event, order) => {
     event.preventDefault();
     try {
-      await apiCreateReview({ orderId: order.id, rating: Number(review.rating), comment: review.comment });
+      const draft = getReviewDraft(order.id);
+      await apiCreateReview({
+        orderId: order.id,
+        rating: Number(draft.rating),
+        comment: draft.comment,
+      });
       setFeedback('Đã gửi đánh giá thành công.');
-      setReview({ rating: '5', comment: '' });
+      setReviewByOrder((current) => ({
+        ...current,
+        [order.id]: { rating: '5', comment: '' },
+      }));
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -148,6 +190,9 @@ const Orders = () => {
   const userKeys = [user?.id, user?.username].filter(Boolean).map(String);
   const sentOffers = offers.filter((offer) => userKeys.includes(String(offer.buyerId)));
   const receivedOffers = offers.filter((offer) => userKeys.includes(String(offer.sellerId)));
+  const pendingOrders = orders.filter((order) => order.status === 'PENDING').length;
+  const processingOrders = orders.filter((order) => order.status === 'PROCESSING').length;
+  const completedOrders = orders.filter((order) => order.status === 'COMPLETED').length;
 
   const renderOfferCard = (offer, direction) => {
     const isSent = direction === 'sent';
@@ -157,19 +202,33 @@ const Orders = () => {
 
     return (
       <article className="offer-row surface" key={`${direction}-${offer.id}`}>
-        <div className="row-between">
+        <div className="offer-row-header">
           <div>
             <h3>Lời đề nghị #{offer.id}</h3>
-            <p>Sản phẩm #{offer.productId}</p>
+            <p>
+              Sản phẩm #{offer.productId}
+              {' · '}
+              Hết hạn {formatDateTime(offer.expiresAt)}
+            </p>
           </div>
           <StatusBadge status={offer.status} />
         </div>
-        <dl className="fact-list compact">
-          <div><dt>Giá gốc</dt><dd>{Number(offer.originalPrice || 0).toLocaleString('vi-VN')} VND</dd></div>
-          <div><dt>Giá đề nghị</dt><dd>{Number(offer.offerPrice || 0).toLocaleString('vi-VN')} VND</dd></div>
-          <div><dt>Mức giảm</dt><dd>{offer.discountPercent}%</dd></div>
-          <div><dt>Hết hạn</dt><dd>{offer.expiresAt ? new Date(offer.expiresAt).toLocaleString('vi-VN') : 'Không rõ'}</dd></div>
-        </dl>
+
+        <div className="offer-price-strip">
+          <div className="offer-price-cell">
+            <span>Giá gốc</span>
+            <strong>{formatCurrency(offer.originalPrice)}</strong>
+          </div>
+          <div className="offer-price-cell">
+            <span>Giá đề nghị</span>
+            <strong>{formatCurrency(offer.offerPrice)}</strong>
+          </div>
+          <div className="offer-price-cell">
+            <span>Mức giảm</span>
+            <strong>{offer.discountPercent}%</strong>
+          </div>
+        </div>
+
         <div className="button-row compact-buttons">
           {canSellerAct ? (
             <>
@@ -198,27 +257,53 @@ const Orders = () => {
 
   return (
     <div className="operations-page container">
-      <header className="operations-header">
+      <header className="operations-header orders-hero">
         <div>
+          <p className="orders-eyebrow">Theo dõi giao dịch</p>
           <h1>Đơn hàng</h1>
+          <p className="operations-subtitle">
+            Xem nhanh trạng thái xử lý, tra cứu mã đơn và hoàn tất các bước mua bán mà không phải đọc một danh sách rối mắt.
+          </p>
         </div>
       </header>
 
-      <form className="catalog-toolbar" onSubmit={lookup}>
+      <section className="order-summary-grid" aria-label="Tóm tắt đơn hàng">
+        <article className="order-summary-card">
+          <span>Tổng đơn</span>
+          <strong>{orders.length}</strong>
+        </article>
+        <article className="order-summary-card">
+          <span>Chờ xử lý</span>
+          <strong>{pendingOrders}</strong>
+        </article>
+        <article className="order-summary-card">
+          <span>Đang giao dịch</span>
+          <strong>{processingOrders}</strong>
+        </article>
+        <article className="order-summary-card">
+          <span>Hoàn tất</span>
+          <strong>{completedOrders}</strong>
+        </article>
+      </section>
+
+      <form className="catalog-toolbar lookup-panel" onSubmit={lookup}>
         <label className="search-field">
-          <Search size={18} />
+          <Search size={18} aria-hidden="true" />
           <input
             required
+            name="orderId"
+            autoComplete="off"
+            aria-label="Tìm mã đơn hàng"
             value={orderId}
             onChange={(event) => setOrderId(event.target.value)}
-            placeholder="Mã đơn hàng"
+            placeholder="Nhập mã đơn hàng…"
           />
         </label>
-        <button className="btn btn-primary">Tìm đơn</button>
+        <button className="btn btn-primary" type="submit">Tìm đơn</button>
       </form>
 
-      {error ? <div className="feedback feedback-error">{error}</div> : null}
-      {feedback ? <div className="feedback feedback-success">{feedback}</div> : null}
+      {error ? <div className="feedback feedback-error" aria-live="polite">{error}</div> : null}
+      {feedback ? <div className="feedback feedback-success" aria-live="polite">{feedback}</div> : null}
 
       <section className="offer-center">
         <div className="section-heading">
@@ -244,39 +329,67 @@ const Orders = () => {
         </div>
       </section>
 
-      <div className="stack-list">
+      <section className="order-list-shell" aria-label="Danh sách đơn hàng">
         {orders.map((order) => {
           const isBuyer = userKeys.includes(String(order.buyerId));
           const isSeller = userKeys.includes(String(order.sellerId));
+          const reviewDraft = getReviewDraft(order.id);
+
           return (
-            <article className="surface order-row" key={order.id}>
+            <article className="surface order-card" key={order.id}>
               <div className="order-main">
-                <div className="row-between">
-                  <h2>Đơn hàng #{order.id}</h2>
+                <div className="order-card-top">
+                  <div className="order-card-title">
+                    <div className="order-meta-row">
+                      <span className="order-meta-pill">Đơn #{order.id}</span>
+                      <span className="order-meta-pill">Sản phẩm #{order.productId}</span>
+                      <span className="order-meta-pill">{deliveryMethodLabel(order.deliveryMethod)}</span>
+                    </div>
+                    <h2>Đơn hàng #{order.id}</h2>
+                    <p>
+                      {isBuyer ? 'Bạn là người mua' : isSeller ? 'Bạn là người bán' : 'Đơn hàng liên quan'}
+                      {' · '}
+                      <Link to={`/products/${order.productId}`}>Xem sản phẩm</Link>
+                    </p>
+                  </div>
                   <StatusBadge status={order.status} />
                 </div>
-                <dl className="fact-list">
+
+                <div className="order-highlight-grid">
+                  <div className="order-highlight">
+                    <span>Tổng tiền</span>
+                    <strong>{formatCurrency(order.amount)}</strong>
+                  </div>
+                  <div className="order-highlight">
+                    <span>Phí vận chuyển</span>
+                    <strong>{formatCurrency(order.shippingFee)}</strong>
+                  </div>
+                  <div className="order-highlight">
+                    <span>Mã vận đơn</span>
+                    <strong>{order.trackingCode || 'Chưa có'}</strong>
+                  </div>
+                </div>
+
+                <dl className="fact-list order-facts">
                   <div><dt>Mã sản phẩm</dt><dd>{order.productId}</dd></div>
                   <div><dt>Người mua</dt><dd>{order.buyerId}</dd></div>
                   <div><dt>Người bán</dt><dd>{order.sellerId}</dd></div>
-                  <div><dt>Tổng tiền</dt><dd>{Number(order.amount || 0).toLocaleString('vi-VN')} VND</dd></div>
-                  <div><dt>Phí vận chuyển</dt><dd>{Number(order.shippingFee || 0).toLocaleString('vi-VN')} VND</dd></div>
                   <div><dt>Giao hàng</dt><dd>{deliveryMethodLabel(order.deliveryMethod)}</dd></div>
-                  <div><dt>Mã vận đơn</dt><dd>{order.trackingCode || 'Chưa có'}</dd></div>
                 </dl>
-                <div className="button-row">
+
+                <div className="button-row order-action-row">
                   {isSeller && order.status === 'PENDING' ? (
-                    <button className="btn btn-primary" onClick={() => updateOrder(order.id, 'confirm')}>
+                    <button className="btn btn-primary" type="button" onClick={() => updateOrder(order.id, 'confirm')}>
                       Xác nhận đơn
                     </button>
                   ) : null}
                   {(isBuyer || isSeller) && order.status === 'PENDING' ? (
-                    <button className="btn btn-secondary" onClick={() => updateOrder(order.id, 'cancel')}>
+                    <button className="btn btn-secondary" type="button" onClick={() => updateOrder(order.id, 'cancel')}>
                       Hủy đơn
                     </button>
                   ) : null}
                   {isBuyer && order.status === 'PROCESSING' ? (
-                    <button className="btn btn-primary" onClick={() => updateOrder(order.id, 'complete')}>
+                    <button className="btn btn-primary" type="button" onClick={() => updateOrder(order.id, 'complete')}>
                       Hoàn tất đơn
                     </button>
                   ) : null}
@@ -285,10 +398,14 @@ const Orders = () => {
 
               {isBuyer && order.status === 'COMPLETED' ? (
                 <form className="review-form" onSubmit={(event) => submitReview(event, order)}>
-                  <h3><Star size={16} /> Đánh giá người bán</h3>
+                  <h3><Star size={16} aria-hidden="true" /> Đánh giá người bán</h3>
                   <label>
                     Điểm đánh giá
-                    <select value={review.rating} onChange={(event) => setReview({ ...review, rating: event.target.value })}>
+                    <select
+                      name={`rating-${order.id}`}
+                      value={reviewDraft.rating}
+                      onChange={(event) => updateReviewDraft(order.id, 'rating', event.target.value)}
+                    >
                       {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating}/5</option>)}
                     </select>
                   </label>
@@ -296,20 +413,22 @@ const Orders = () => {
                     Nhận xét
                     <textarea
                       required
-                      value={review.comment}
-                      onChange={(event) => setReview({ ...review, comment: event.target.value })}
+                      name={`comment-${order.id}`}
+                      value={reviewDraft.comment}
+                      onChange={(event) => updateReviewDraft(order.id, 'comment', event.target.value)}
+                      placeholder="Chia sẻ trải nghiệm mua hàng…"
                     />
                   </label>
-                  <button className="btn btn-secondary">Gửi đánh giá</button>
+                  <button className="btn btn-secondary" type="submit">Gửi đánh giá</button>
                 </form>
               ) : null}
             </article>
           );
         })}
-      </div>
+      </section>
 
-      {loading ? <div className="page-state">Dang tai don hang...</div> : null}
-      {!loading && orders.length === 0 ? <div className="page-state">Chua co don hang nao.</div> : null}
+      {loading ? <div className="page-state">Đang tải đơn hàng…</div> : null}
+      {!loading && orders.length === 0 ? <div className="page-state">Chưa có đơn hàng nào.</div> : null}
     </div>
   );
 };

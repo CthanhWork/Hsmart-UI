@@ -6,6 +6,12 @@ import { useUser } from '../context/UserContext';
 import { apiDeleteProduct, apiFetchProducts } from '../services/api';
 import './MyHub.css';
 
+const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+}).format(Number(value || 0));
+
 const MyHub = () => {
   const { user } = useUser();
   const [products, setProducts] = useState([]);
@@ -30,15 +36,40 @@ const MyHub = () => {
     }
   };
 
+  const totalValue = products.reduce((sum, product) => sum + Number(product.price || 0), 0);
+  const averagePrice = products.length ? totalValue / products.length : 0;
+
   return (
     <div className="uk-section uk-section-default seller-listings-page">
       <div className="uk-container">
         <header className="listings-header">
-          <h1 className="dashboard-title">Tin đăng của tôi</h1>
+          <div className="listings-heading-copy">
+            <p className="listings-eyebrow">Quản lý tin đăng</p>
+            <h1 className="dashboard-title">Tin đăng của tôi</h1>
+            <p className="listings-subtitle">
+              Theo dõi nhanh sản phẩm đang bán, giá niêm yết và thao tác chỉnh sửa ở một chỗ.
+            </p>
+          </div>
+
           <Link className="uk-button uk-button-primary create-listing-btn" to="/sell">
             <Plus size={16} aria-hidden="true" /> Tạo tin đăng
           </Link>
         </header>
+
+        <section className="listings-overview" aria-label="Tóm tắt tin đăng">
+          <article className="listing-stat-card">
+            <span>Tổng tin đăng</span>
+            <strong>{products.length}</strong>
+          </article>
+          <article className="listing-stat-card">
+            <span>Tổng giá trị niêm yết</span>
+            <strong>{formatCurrency(totalValue)}</strong>
+          </article>
+          <article className="listing-stat-card">
+            <span>Giá trung bình</span>
+            <strong>{formatCurrency(averagePrice)}</strong>
+          </article>
+        </section>
 
         {error ? (
           <div className="uk-alert-danger uk-margin-medium-bottom listings-error">
@@ -47,55 +78,6 @@ const MyHub = () => {
         ) : null}
 
         <div className="uk-card uk-card-default uk-card-body table-container-card">
-          <div className="uk-overflow-auto">
-            <table className="uk-table uk-table-divider uk-table-hover uk-table-middle data-listings-table">
-              <thead>
-                <tr>
-                  <th className="uk-table-expand">Sản phẩm</th>
-                  <th className="uk-table-shrink">Giá</th>
-                  <th className="uk-table-shrink">Trạng thái</th>
-                  <th className="uk-table-shrink uk-text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <Link to={`/products/${product.id}`} className="uk-link-reset flex-product-cell">
-                        <img src={product.imageUrl} alt="" className="table-product-thumbnail" />
-                        <span className="table-product-title-text">{product.title}</span>
-                      </Link>
-                    </td>
-                    <td className="price-cell-value">
-                      {product.price.toLocaleString('vi-VN')} VND
-                    </td>
-                    <td>
-                      <StatusBadge status={product.status} />
-                    </td>
-                    <td>
-                      <div className="table-actions-group">
-                        <Link
-                          to={`/products/${product.id}/edit`}
-                          className="action-icon-btn edit-icon-btn"
-                          title="Sửa sản phẩm"
-                        >
-                          <Edit3 size={15} />
-                        </Link>
-                        <button
-                          onClick={() => remove(product)}
-                          className="action-icon-btn delete-icon-btn"
-                          title="Xóa sản phẩm"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
           {products.length === 0 ? (
             <div className="uk-text-center uk-margin-medium-top uk-margin-medium-bottom no-listings-fallback">
               <p className="uk-text-lead uk-text-muted">Bạn chưa có tin đăng nào.</p>
@@ -103,7 +85,59 @@ const MyHub = () => {
                 Tạo tin đăng đầu tiên
               </Link>
             </div>
-          ) : null}
+          ) : (
+            <div className="listing-card-list" aria-label="Danh sách tin đăng">
+              {products.map((product) => (
+                <article className="listing-card" key={product.id}>
+                  <Link to={`/products/${product.id}`} className="listing-card-main">
+                    <img
+                      src={product.imageUrl}
+                      alt=""
+                      className="table-product-thumbnail"
+                      width="72"
+                      height="72"
+                      loading="lazy"
+                    />
+                    <div className="listing-card-copy">
+                      <h2 className="listing-card-title">{product.title}</h2>
+                      <p className="listing-card-meta">Mã sản phẩm #{product.id}</p>
+                    </div>
+                  </Link>
+
+                  <div className="listing-card-side">
+                    <div className="listing-card-price-block">
+                      <span>Giá bán</span>
+                      <strong>{formatCurrency(product.price)}</strong>
+                    </div>
+
+                    <div className="listing-card-status">
+                      <StatusBadge status={product.status} />
+                    </div>
+
+                    <div className="table-actions-group">
+                      <Link
+                        to={`/products/${product.id}/edit`}
+                        className="action-icon-btn edit-icon-btn"
+                        title="Sửa sản phẩm"
+                        aria-label={`Sửa sản phẩm ${product.title}`}
+                      >
+                        <Edit3 size={15} aria-hidden="true" />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => remove(product)}
+                        className="action-icon-btn delete-icon-btn"
+                        title="Xóa sản phẩm"
+                        aria-label={`Xóa sản phẩm ${product.title}`}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

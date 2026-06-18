@@ -92,6 +92,14 @@ const jsonRequest = (path, method, body, authenticated = false) => request(path,
 
 const unwrapData = (payload) => payload?.data ?? payload;
 
+const toArray = (value) => {
+  const data = unwrapData(value);
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
 const normalizeProduct = (product) => ({
   ...product,
   id: product?.id,
@@ -111,9 +119,15 @@ const normalizeProduct = (product) => ({
 
 const normalizePage = (payload, mapper = (item) => item) => {
   const data = unwrapData(payload);
-  const content = Array.isArray(data) ? data : data?.content;
+  const content = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.content)
+      ? data.content
+      : Array.isArray(data?.data)
+        ? data.data
+        : [];
   return {
-    content: Array.isArray(content) ? content.map(mapper) : [],
+    content: content.map(mapper),
     pageNo: Number(data?.pageNo || 0),
     pageSize: Number(data?.pageSize || content?.length || 0),
     totalElements: Number(data?.totalElements || content?.length || 0),
@@ -161,8 +175,8 @@ export const apiUpdateProfile = async (profileData) => unwrapData(
 );
 
 export const apiFetchCategories = async () => {
-  const categories = unwrapData(await request('/products/categories'));
-  return (categories || []).map((category) => ({
+  const categories = toArray(await request('/products/categories'));
+  return categories.map((category) => ({
     ...category,
     displayName: formatCategoryName(category.name),
   }));

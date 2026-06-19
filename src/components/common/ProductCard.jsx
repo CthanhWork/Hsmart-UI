@@ -1,6 +1,5 @@
 import { Heart, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import StatusBadge from './StatusBadge';
 import './ProductCard.css';
 
 const ProductCard = ({ product, variant = 'default' }) => {
@@ -14,7 +13,6 @@ const ProductCard = ({ product, variant = 'default' }) => {
         <figure className="tile-image-wrap">
           <img src={imageUrl} alt={product.title} loading="lazy" />
           <span className="sale-corner-badge">-{salePercent}%</span>
-          <span className="tile-status-pill"><StatusBadge status={product.status} /></span>
         </figure>
 
         <div className="commerce-tile-body">

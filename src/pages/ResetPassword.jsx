@@ -1,12 +1,27 @@
 import { useMemo, useState } from 'react';
 import { KeyRound, MailCheck, ShieldCheck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import OtpCodeField from '../components/Auth/OtpCodeField';
 import { apiResetPassword } from '../services/api';
 import './AuthAction.css';
 
+const sanitizeOtp = (value = '') => value.replace(/\D/g, '').slice(0, 6);
+const isOtpCode = (value = '') => /^\d{6}$/.test(value.trim());
+
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
-  const initialToken = useMemo(() => searchParams.get('token') || '', [searchParams]);
+  const initialTokenParam = useMemo(
+    () => (searchParams.get('token') || searchParams.get('code') || '').trim(),
+    [searchParams],
+  );
+  const usesLegacyToken = useMemo(
+    () => Boolean(initialTokenParam) && !isOtpCode(initialTokenParam),
+    [initialTokenParam],
+  );
+  const initialToken = useMemo(
+    () => (usesLegacyToken ? initialTokenParam : sanitizeOtp(initialTokenParam)),
+    [initialTokenParam, usesLegacyToken],
+  );
   const [token, setToken] = useState(initialToken);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,8 +31,15 @@ const ResetPassword = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!token.trim()) {
-      setStatus({ type: 'error', message: 'Vui lòng nhập token đặt lại mật khẩu từ email.' });
+    const normalizedToken = usesLegacyToken ? token.trim() : sanitizeOtp(token);
+
+    if (!usesLegacyToken && normalizedToken.length !== 6) {
+      setStatus({ type: 'error', message: 'Vui lòng nhập đầy đủ mã OTP 6 số từ email.' });
+      return;
+    }
+
+    if (usesLegacyToken && !normalizedToken) {
+      setStatus({ type: 'error', message: 'Vui lòng mở lại link đặt lại mật khẩu cũ hoặc yêu cầu email mới.' });
       return;
     }
 
@@ -35,7 +57,7 @@ const ResetPassword = () => {
     setSubmitting(true);
 
     try {
-      await apiResetPassword(token.trim(), newPassword);
+      await apiResetPassword(normalizedToken, newPassword);
       setStatus({
         type: 'success',
         message: 'Đặt lại mật khẩu thành công. Bạn có thể quay lại và đăng nhập bằng mật khẩu mới.',
@@ -61,20 +83,21 @@ const ResetPassword = () => {
               <MailCheck size={14} />
               Khôi phục tài khoản
             </div>
-            <h1>Tạo mật khẩu mới để quay lại H-Smart.</h1>
+            <h1>{usesLegacyToken ? 'Link đặt lại mật khẩu cũ vẫn đang được hỗ trợ.' : 'Nhập OTP và tạo mật khẩu mới trong cùng một màn hình.'}</h1>
             <p>
-              Nếu bạn mở từ email, token sẽ tự điền sẵn. Nếu không, chỉ cần dán token trong email
-              rồi nhập mật khẩu mới.
+              {usesLegacyToken
+                ? 'Nếu bạn đang mở email cũ, hệ thống vẫn cho phép nhập token cũ. Nhưng từ bây giờ email mới sẽ dùng mã OTP 6 số gọn hơn.'
+                : 'Không cần bấm link dài nữa. Hãy mở email, lấy mã OTP 6 số rồi nhập cùng mật khẩu mới để hoàn tất.'}
             </p>
 
             <div className="auth-action-tips">
               <div className="auth-action-tip">
                 <KeyRound size={18} />
-                <span>Đặt mật khẩu tối thiểu 8 ký tự để đăng nhập ổn định hơn.</span>
+                <span>{usesLegacyToken ? 'Token cũ vẫn hợp lệ nếu email đặt lại mật khẩu đã được gửi từ trước.' : 'Mã OTP được gửi trong email đặt lại mật khẩu của bạn.'}</span>
               </div>
               <div className="auth-action-tip">
                 <ShieldCheck size={18} />
-                <span>Sau khi đổi xong, bạn có thể đăng nhập lại ngay trên trang chủ.</span>
+                <span>Chọn mật khẩu mới tối thiểu 8 ký tự để đăng nhập ổn định hơn.</span>
               </div>
             </div>
           </div>
@@ -82,8 +105,8 @@ const ResetPassword = () => {
 
         <div className="auth-action-card">
           <header>
-            <h2>Đặt lại mật khẩu</h2>
-            <p>Nhập token từ email và tạo mật khẩu mới cho tài khoản của bạn.</p>
+            <h2>Đặt lại mật khẩu bằng OTP</h2>
+            <p>Nhập mã OTP 6 số từ email và tạo mật khẩu mới cho tài khoản của bạn.</p>
           </header>
 
           {status.message ? (
@@ -91,17 +114,30 @@ const ResetPassword = () => {
           ) : null}
 
           <form className="auth-action-form" onSubmit={handleSubmit}>
-            <div className="auth-action-field">
-              <label htmlFor="reset-token">Token đặt lại</label>
-              <input
-                id="reset-token"
-                type="text"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Dán token từ email"
-                autoComplete="one-time-code"
+            {usesLegacyToken ? (
+              <div className="auth-action-field">
+                <label htmlFor="reset-token">Token từ link cũ</label>
+                <input
+                  id="reset-token"
+                  type="text"
+                  value={token}
+                  onChange={(event) => setToken(event.target.value)}
+                  disabled={submitting}
+                  autoComplete="one-time-code"
+                />
+                <small>Email mới sẽ dùng mã OTP 6 số, nhưng token cũ vẫn được chấp nhận trong thời gian còn hạn.</small>
+              </div>
+            ) : (
+              <OtpCodeField
+                idPrefix="reset-otp"
+                label="Mã OTP"
+                value={sanitizeOtp(token)}
+                onChange={setToken}
+                disabled={submitting}
+                autoFocus={!initialToken}
+                helperText="Nếu bạn paste cả mã, hệ thống sẽ tự chia vào 6 ô."
               />
-            </div>
+            )}
 
             <div className="auth-action-field">
               <label htmlFor="reset-password">Mật khẩu mới</label>

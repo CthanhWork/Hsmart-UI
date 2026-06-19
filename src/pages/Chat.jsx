@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MessageCircle, Package, Search, Send } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Search, Send } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
@@ -13,11 +13,19 @@ import {
   apiFetchProductById,
   apiRejectOffer,
 } from '../services/api';
-import { createChatClient } from '../services/chatClient';
+import { useRealtime } from '../context/RealtimeContext';
 import './Chat.css';
 
 const CONVERSATION_STORAGE_KEY = 'hsmart_chat_conversations';
 const OPTIMISTIC_MESSAGE_WINDOW_MS = 15000;
+
+const PRODUCT_STATUS_LABELS = {
+  APPROVED: 'Còn hàng',
+  PENDING_APPROVAL: 'Chờ duyệt',
+  SOLD: 'Đã bán',
+  REJECTED: 'Bị từ chối',
+  HIDDEN: 'Đã ẩn',
+};
 
 const conversationKey = (participantId, productId) => `${participantId || ''}:${productId || ''}`;
 
@@ -101,12 +109,11 @@ const Chat = () => {
   const [conversations, setConversations] = useState(readStoredConversations);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState('');
-  const [connected, setConnected] = useState(false);
+  const { connected, publishMessage, setMessageHandler } = useRealtime();
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [conversationFilter, setConversationFilter] = useState('');
   const [offers, setOffers] = useState([]);
   const [error, setError] = useState('');
-  const clientRef = useRef(null);
   const messageListRef = useRef(null);
   const lastScrolledConversationRef = useRef('');
   const currentUserIdRef = useRef('');
@@ -165,44 +172,32 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    if (!currentUserId) return undefined;
+    setMessageHandler((message) => {
+      const nextMessage = normalizeMessage(message);
+      const participantId = nextMessage.senderId === currentUserIdRef.current
+        ? String(nextMessage.receiverId || activeParticipantIdRef.current)
+        : String(nextMessage.senderId || activeParticipantIdRef.current);
+      const productId = String(nextMessage.productId || activeProductIdRef.current);
 
-    const client = createChatClient({
-      userId: currentUserId,
-      onConnect: () => setConnected(true),
-      onMessage: (message) => {
-        const nextMessage = normalizeMessage(message);
-        const participantId = nextMessage.senderId === currentUserIdRef.current
-          ? String(nextMessage.receiverId || activeParticipantIdRef.current)
-          : String(nextMessage.senderId || activeParticipantIdRef.current);
-        const productId = String(nextMessage.productId || activeProductIdRef.current);
+      if (participantId && productId) {
+        upsertConversation({
+          participantId,
+          productId,
+          lastMessage: nextMessage.content,
+          updatedAt: nextMessage.timestamp || new Date().toISOString(),
+        });
+      }
 
-        if (participantId && productId) {
-          upsertConversation({
-            participantId,
-            productId,
-            lastMessage: nextMessage.content,
-            updatedAt: nextMessage.timestamp || new Date().toISOString(),
-          });
-        }
-
-        const isActiveProduct = productId === String(activeProductIdRef.current);
-        const isActiveParticipant = [nextMessage.senderId, nextMessage.receiverId]
-          .some((id) => String(id) === String(activeParticipantIdRef.current));
-        if (isActiveProduct && isActiveParticipant) {
-          setMessages((current) => dedupeMessages([...current, nextMessage]));
-        }
-      },
-      onError: (requestError) => setError(requestError.message),
+      const isActiveProduct = productId === String(activeProductIdRef.current);
+      const isActiveParticipant = [nextMessage.senderId, nextMessage.receiverId]
+        .some((id) => String(id) === String(activeParticipantIdRef.current));
+      if (isActiveProduct && isActiveParticipant) {
+        setMessages((current) => dedupeMessages([...current, nextMessage]));
+      }
     });
 
-    client.activate();
-    clientRef.current = client;
-    return () => {
-      setConnected(false);
-      client.deactivate();
-    };
-  }, [currentUserId]);
+    return () => setMessageHandler(null);
+  }, [setMessageHandler]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -218,8 +213,10 @@ const Chat = () => {
             return {
               participantId: String(summary.participantId || ''),
               productId: String(summary.productId || ''),
-              productTitle: product?.title || `Sáº£n pháº©m #${summary.productId}`,
+              productTitle: product?.title || `Sản phẩm #${summary.productId}`,
               productImage: product?.imageUrl,
+              productPrice: product?.price,
+              productStatus: product?.status,
               lastMessage: summary.lastMessage || '',
               updatedAt: summary.updatedAt || new Date().toISOString(),
             };
@@ -295,6 +292,8 @@ const Chat = () => {
           productId: activeProductId,
           productTitle: product?.title || `Sản phẩm #${activeProductId}`,
           productImage: product?.imageUrl,
+          productPrice: product?.price,
+          productStatus: product?.status,
           lastMessage: latestMessage?.content,
           updatedAt: latestMessage?.timestamp,
         }, { promote: false });
@@ -343,7 +342,7 @@ const Chat = () => {
   const send = (event) => {
     event.preventDefault();
     const trimmedContent = content.trim();
-    if (!trimmedContent || !clientRef.current?.connected || !activeParticipantId || !activeProductId) return;
+    if (!trimmedContent || !connected || !activeParticipantId || !activeProductId) return;
 
     const optimisticMessage = normalizeMessage({
       id: `local-${Date.now()}`,
@@ -354,13 +353,10 @@ const Chat = () => {
       timestamp: new Date().toISOString(),
     });
 
-    clientRef.current.publish({
-      destination: '/app/chat.send',
-      body: JSON.stringify({
-        receiverId: activeParticipantId,
-        productId: Number(activeProductId),
-        content: trimmedContent,
-      }),
+    publishMessage('/app/chat.send', {
+      receiverId: activeParticipantId,
+      productId: Number(activeProductId),
+      content: trimmedContent,
     });
 
     setMessages((current) => dedupeMessages([...current, optimisticMessage]));
@@ -494,21 +490,36 @@ const Chat = () => {
                       <span>{connected ? 'Đang hoạt động' : 'Đang kết nối...'}</span>
                     </div>
                   </div>
-                  <Link to={`/products/${activeProductId}`} className="view-product-link">
-                    <Package size={18} />
-                    <span>Xem sản phẩm</span>
-                  </Link>
                 </div>
 
-                <div className="message-list shopee-message-list" ref={messageListRef}>
-                  <div className="chat-context-card">
+                {activeProductId ? (
+                  <div className="chat-product-bar">
                     <img
                       src={activeConversation?.productImage || '/products_hq/coffee_maker.jpg'}
                       alt={activeConversation?.productTitle || `Sản phẩm #${activeProductId}`}
                     />
-                    <strong>{activeConversation?.productTitle || `Sản phẩm #${activeProductId}`}</strong>
-                    <span>Cuộc trò chuyện về sản phẩm này</span>
+                    <div className="chat-product-bar-info">
+                      <span className="chat-product-bar-title">
+                        {activeConversation?.productTitle || `Sản phẩm #${activeProductId}`}
+                      </span>
+                      <span className="chat-product-bar-meta">
+                        {activeConversation?.productPrice ? (
+                          <b>{Number(activeConversation.productPrice).toLocaleString('vi-VN')}đ</b>
+                        ) : null}
+                        {activeConversation?.productStatus ? (
+                          <em className={`product-status-badge status-${activeConversation.productStatus.toLowerCase()}`}>
+                            {PRODUCT_STATUS_LABELS[activeConversation.productStatus] || activeConversation.productStatus}
+                          </em>
+                        ) : null}
+                      </span>
+                    </div>
+                    <Link to={`/products/${activeProductId}`} className="chat-product-bar-link">
+                      Xem ngay
+                    </Link>
                   </div>
+                ) : null}
+
+                <div className="message-list shopee-message-list" ref={messageListRef}>
                   {loadingMessages ? <div className="chat-state chat-loading">Đang tải cuộc trò chuyện...</div> : null}
                   {activeOffers.map((offer) => {
                     const isSellerView = String(offer.sellerId) === currentUserId;
@@ -569,12 +580,12 @@ const Chat = () => {
                     <input
                       value={content}
                       onChange={(event) => setContent(event.target.value)}
-                      placeholder={connected ? 'Aa' : 'Đang kết nối chat...'}
+                      placeholder={connected ? 'Aa' : 'Dang ket noi chat...'}
                       disabled={!connected}
-                      aria-label="Nội dung tin nhắn"
+                      aria-label="Noi dung tin nhan"
                     />
                   </div>
-                  <button disabled={!connected || !content.trim()} title="Gửi tin nhắn" aria-label="Gửi tin nhắn">
+                  <button disabled={!connected || !content.trim()} title="Gui tin nhan" aria-label="Gui tin nhan">
                     <Send size={17} />
                   </button>
                 </form>
@@ -582,8 +593,8 @@ const Chat = () => {
             ) : (
               <div className="chat-start-state">
                 <span className="chat-start-icon"><MessageCircle size={34} /></span>
-                <h2>Tin nhắn của bạn</h2>
-                <p>Chọn một cuộc trò chuyện để tiếp tục trao đổi với người bán.</p>
+                <h2>Tin nhan cua ban</h2>
+                <p>Chon mot cuoc tro chuyen de tiep tuc trao doi voi nguoi ban.</p>
               </div>
             )}
           </main>

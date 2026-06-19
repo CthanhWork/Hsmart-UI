@@ -6,9 +6,11 @@ import {
   FolderPlus,
   PackageCheck,
   PackageSearch,
+  ReceiptText,
   RefreshCw,
   Search,
   ShieldAlert,
+  Truck,
   Users,
   WalletCards,
   X,
@@ -18,6 +20,7 @@ import {
   apiBanUser,
   apiCreateCategory,
   apiFetchAdminStats,
+  apiFetchOrder,
   apiFetchPendingReports,
   apiFetchProductPage,
   apiModerateProduct,
@@ -27,12 +30,28 @@ import './Admin.css';
 
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')} VND`;
 
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(parsed);
+};
+
+const deliveryLabel = (method) => {
+  if (method === 'GHTK') return 'Giao Hàng Tiết Kiệm';
+  if (method === 'VIETTEL_POST') return 'Viettel Post';
+  return method || 'Chưa rõ';
+};
+
 const Admin = () => {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [reports, setReports] = useState([]);
   const [userId, setUserId] = useState('');
   const [categoryName, setCategoryName] = useState('');
+  const [orders, setOrders] = useState([]);
+  const [orderLookupId, setOrderLookupId] = useState('');
+  const [orderLoading, setOrderLoading] = useState(false);
   const [activeQueue, setActiveQueue] = useState('products');
   const [productFilter, setProductFilter] = useState('');
   const [reportFilter, setReportFilter] = useState('');
@@ -107,6 +126,29 @@ const Admin = () => {
     if (!targetCategory) return;
     run(() => apiCreateCategory(targetCategory), `Danh mục ${targetCategory} đã được tạo.`);
     setCategoryName('');
+  };
+
+  const lookupOrder = async (event) => {
+    event.preventDefault();
+    const id = orderLookupId.trim();
+    if (!id) return;
+    setError('');
+    setFeedback('');
+    setOrderLoading(true);
+    try {
+      const order = await apiFetchOrder(id);
+      setOrders((current) => [order, ...current.filter((item) => String(item.id) !== String(order.id))]);
+      setFeedback(`Đã tải đơn hàng #${order.id}.`);
+      setOrderLookupId('');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setOrderLoading(false);
+    }
+  };
+
+  const removeOrder = (id) => {
+    setOrders((current) => current.filter((item) => String(item.id) !== String(id)));
   };
 
   const visibleProducts = useMemo(() => {
@@ -236,20 +278,46 @@ const Admin = () => {
                 Báo cáo
                 <span>{reports.length}</span>
               </button>
+              <button
+                type="button"
+                className={activeQueue === 'orders' ? 'active' : ''}
+                onClick={() => setActiveQueue('orders')}
+              >
+                <ReceiptText size={16} />
+                Đơn hàng
+                <span>{orders.length}</span>
+              </button>
             </div>
 
-            <label className="admin-search-field">
-              <Search size={16} />
-              <input
-                value={activeQueue === 'products' ? productFilter : reportFilter}
-                onChange={(event) => (
-                  activeQueue === 'products'
-                    ? setProductFilter(event.target.value)
-                    : setReportFilter(event.target.value)
-                )}
-                placeholder="Lọc nhanh"
-              />
-            </label>
+            {activeQueue === 'orders' ? (
+              <form className="admin-order-lookup" onSubmit={lookupOrder}>
+                <label className="admin-search-field">
+                  <Search size={16} />
+                  <input
+                    value={orderLookupId}
+                    onChange={(event) => setOrderLookupId(event.target.value)}
+                    placeholder="Nhập mã đơn để tra cứu…"
+                    inputMode="numeric"
+                  />
+                </label>
+                <button type="submit" disabled={orderLoading}>
+                  {orderLoading ? 'Đang tải…' : 'Tra cứu'}
+                </button>
+              </form>
+            ) : (
+              <label className="admin-search-field">
+                <Search size={16} />
+                <input
+                  value={activeQueue === 'products' ? productFilter : reportFilter}
+                  onChange={(event) => (
+                    activeQueue === 'products'
+                      ? setProductFilter(event.target.value)
+                      : setReportFilter(event.target.value)
+                  )}
+                  placeholder="Lọc nhanh"
+                />
+              </label>
+            )}
           </div>
 
           {activeQueue === 'products' ? (
@@ -308,7 +376,7 @@ const Admin = () => {
               </table>
               {visibleProducts.length === 0 ? <div className="admin-empty-state">Không có sản phẩm.</div> : null}
             </div>
-          ) : (
+          ) : activeQueue === 'reports' ? (
             <div className="admin-table-wrap">
               <table className="admin-data-table">
                 <thead>
@@ -351,6 +419,86 @@ const Admin = () => {
               </table>
               {visibleReports.length === 0 ? <div className="admin-empty-state">Không có báo cáo.</div> : null}
             </div>
+          ) : (
+            <div className="admin-orders-panel">
+              {orders.length === 0 ? (
+                <div className="admin-empty-state admin-orders-empty">
+                  <ReceiptText size={26} />
+                  <p>Chưa có đơn hàng nào được tải.</p>
+                  <small>Nhập mã đơn vào ô tra cứu phía trên để xem chi tiết và theo dõi trạng thái.</small>
+                </div>
+              ) : (
+                <div className="admin-orders-grid">
+                  {orders.map((order) => (
+                    <article className="admin-order-card" key={order.id}>
+                      <header className="admin-order-card-head">
+                        <div>
+                          <span className="admin-order-id">Đơn #{order.id}</span>
+                          <span className="admin-order-product">Sản phẩm #{order.productId}</span>
+                        </div>
+                        <div className="admin-order-head-right">
+                          <StatusBadge status={order.status} />
+                          <button
+                            type="button"
+                            className="admin-order-remove"
+                            onClick={() => removeOrder(order.id)}
+                            title="Bỏ khỏi danh sách"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </header>
+
+                      <div className="admin-order-parties">
+                        <div>
+                          <span>Người mua</span>
+                          <strong>{order.buyerId || '—'}</strong>
+                        </div>
+                        <div className="admin-order-arrow">→</div>
+                        <div>
+                          <span>Người bán</span>
+                          <strong>{order.sellerId || '—'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="admin-order-amounts">
+                        <div>
+                          <span>Tiền hàng</span>
+                          <strong>{formatMoney(order.productAmount)}</strong>
+                        </div>
+                        <div>
+                          <span>Phí vận chuyển</span>
+                          <strong>{formatMoney(order.shippingFee)}</strong>
+                        </div>
+                        <div className="admin-order-total">
+                          <span>Tổng cộng</span>
+                          <strong>{formatMoney(order.amount)}</strong>
+                        </div>
+                      </div>
+
+                      <dl className="admin-order-meta">
+                        <div>
+                          <dt><Truck size={13} /> Vận chuyển</dt>
+                          <dd>{deliveryLabel(order.deliveryMethod)}</dd>
+                        </div>
+                        <div>
+                          <dt>Mã vận đơn</dt>
+                          <dd>{order.trackingCode || 'Chưa có'}</dd>
+                        </div>
+                        <div>
+                          <dt>Tạo lúc</dt>
+                          <dd>{formatDateTime(order.createdAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Cập nhật</dt>
+                          <dd>{formatDateTime(order.updatedAt)}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </section>
       </div>
@@ -359,3 +507,4 @@ const Admin = () => {
 };
 
 export default Admin;
+

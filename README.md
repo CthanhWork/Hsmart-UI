@@ -10,7 +10,10 @@ Create `.env.local` from `.env.example`:
 VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-For the GCP backend, set `VITE_API_BASE_URL` to the public API Gateway or Tailscale Serve address.
+For local development, point `VITE_API_BASE_URL` at your reachable API Gateway.
+For Vercel production, prefer `VITE_API_BASE_URL=/api/v1` and let `vercel.json` rewrite `/api/*`
+to the deployed backend. This keeps browser traffic same-origin and avoids client-side issues when
+the upstream API is exposed through Tailscale Funnel.
 
 ## Development
 

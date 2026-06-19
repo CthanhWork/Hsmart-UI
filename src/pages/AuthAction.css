@@ -156,6 +156,28 @@
   line-height: 1.55;
 }
 
+.auth-action-otp-inputs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-action-otp-input {
+  min-height: 62px;
+  padding: 0;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.auth-action-otp-input::selection {
+  background: rgba(255, 104, 37, 0.22);
+}
+
 .auth-action-status {
   padding: 13px 14px;
   border-radius: 16px;
@@ -214,5 +236,16 @@
   .auth-action-hero,
   .auth-action-card {
     padding: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-action-otp-inputs {
+    gap: 8px;
+  }
+
+  .auth-action-otp-input {
+    min-height: 54px;
+    font-size: 24px;
   }
 }

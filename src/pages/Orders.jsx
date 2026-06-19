@@ -50,6 +50,14 @@ const actionMessage = (action) => {
   return 'Đơn hàng đã hoàn tất.';
 };
 
+const ORDER_STEPS = [
+  { key: 'PENDING', label: 'Đặt hàng' },
+  { key: 'PROCESSING', label: 'Đang giao dịch' },
+  { key: 'COMPLETED', label: 'Hoàn tất' },
+];
+
+const stepIndexByStatus = { PENDING: 0, PROCESSING: 1, COMPLETED: 2 };
+
 const Orders = () => {
   const { user } = useUser();
   const toast = useToast();
@@ -59,6 +67,8 @@ const Orders = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewByOrder, setReviewByOrder] = useState({});
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
 
@@ -200,6 +210,31 @@ const Orders = () => {
   const processingOrders = orders.filter((order) => order.status === 'PROCESSING').length;
   const completedOrders = orders.filter((order) => order.status === 'COMPLETED').length;
 
+  const buyOrders = orders.filter((order) => userKeys.includes(String(order.buyerId)));
+  const sellOrders = orders.filter((order) => userKeys.includes(String(order.sellerId)));
+
+  const roleTabs = [
+    { key: 'all', label: 'Tất cả', count: orders.length },
+    { key: 'buy', label: 'Đơn mua', count: buyOrders.length },
+    { key: 'sell', label: 'Đơn bán', count: sellOrders.length },
+  ];
+
+  const statusTabs = [
+    { key: 'all', label: 'Mọi trạng thái' },
+    { key: 'PENDING', label: 'Chờ xử lý' },
+    { key: 'PROCESSING', label: 'Đang xử lý' },
+    { key: 'COMPLETED', label: 'Hoàn tất' },
+    { key: 'CANCELLED', label: 'Đã hủy' },
+  ];
+
+  const filteredOrders = orders.filter((order) => {
+    const matchesRole = roleFilter === 'all'
+      || (roleFilter === 'buy' && userKeys.includes(String(order.buyerId)))
+      || (roleFilter === 'sell' && userKeys.includes(String(order.sellerId)));
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    return matchesRole && matchesStatus;
+  });
+
   const renderOfferCard = (offer, direction) => {
     const isSent = direction === 'sent';
     const canSellerAct = !isSent && offer.status === 'PENDING';
@@ -335,11 +370,49 @@ const Orders = () => {
         </div>
       </section>
 
-      <section className="order-list-shell" aria-label="Danh sách đơn hàng">
-        {orders.map((order) => {
+      <section className="order-list-section" aria-label="Danh sách đơn hàng">
+        <div className="order-list-head">
+          <div className="section-heading order-list-heading">
+            <h2>Đơn hàng của bạn</h2>
+          </div>
+          <div className="order-filter-bar">
+            <div className="order-role-tabs" role="tablist" aria-label="Vai trò">
+              {roleTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={roleFilter === tab.key}
+                  className={roleFilter === tab.key ? 'active' : ''}
+                  onClick={() => setRoleFilter(tab.key)}
+                >
+                  {tab.label}
+                  <span>{tab.count}</span>
+                </button>
+              ))}
+            </div>
+            <div className="order-status-chips">
+              {statusTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={statusFilter === tab.key ? 'active' : ''}
+                  onClick={() => setStatusFilter(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="order-list-shell">
+        {filteredOrders.map((order) => {
           const isBuyer = userKeys.includes(String(order.buyerId));
           const isSeller = userKeys.includes(String(order.sellerId));
           const reviewDraft = getReviewDraft(order.id);
+          const isCancelled = order.status === 'CANCELLED';
+          const activeStep = stepIndexByStatus[order.status] ?? -1;
 
           return (
             <article className="surface order-card" key={order.id}>
@@ -376,11 +449,31 @@ const Orders = () => {
                   </div>
                 </div>
 
+                {isCancelled ? (
+                  <div className="order-timeline order-timeline-cancelled">
+                    Đơn hàng đã bị hủy{order.updatedAt ? ` · ${formatDateTime(order.updatedAt)}` : ''}
+                  </div>
+                ) : (
+                  <ol className="order-timeline" aria-label="Tiến trình đơn hàng">
+                    {ORDER_STEPS.map((step, index) => {
+                      const state = index < activeStep ? 'done' : index === activeStep ? 'current' : 'todo';
+                      return (
+                        <li key={step.key} className={`order-step order-step-${state}`}>
+                          <span className="order-step-dot" />
+                          <span className="order-step-label">{step.label}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+
                 <dl className="fact-list order-facts">
                   <div><dt>Mã sản phẩm</dt><dd>{order.productId}</dd></div>
                   <div><dt>Người mua</dt><dd>{order.buyerId}</dd></div>
                   <div><dt>Người bán</dt><dd>{order.sellerId}</dd></div>
                   <div><dt>Giao hàng</dt><dd>{deliveryMethodLabel(order.deliveryMethod)}</dd></div>
+                  <div><dt>Ngày tạo</dt><dd>{formatDateTime(order.createdAt)}</dd></div>
+                  <div><dt>Cập nhật</dt><dd>{formatDateTime(order.updatedAt)}</dd></div>
                 </dl>
 
                 <div className="button-row order-action-row">
@@ -431,6 +524,11 @@ const Orders = () => {
             </article>
           );
         })}
+
+        {!loading && orders.length > 0 && filteredOrders.length === 0 ? (
+          <div className="page-state order-empty-filter">Không có đơn hàng phù hợp với bộ lọc.</div>
+        ) : null}
+        </div>
       </section>
 
       {loading ? <div className="page-state">Đang tải đơn hàng…</div> : null}

@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Bell, Heart, LogOut, Menu, MessageCircle, Search, Shield, User, X } from 'lucide-react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useRealtime } from '../../context/RealtimeContext';
+import { useState } from 'react';
+import { Bell, Heart, LogOut, Menu, Search, Shield, User, X } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
 import AuthModal from '../Auth/AuthModal';
 import './Navbar.css';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, isAuthenticated, logout } = useUser();
-  const realtime = useRealtime();
-  const unreadCount = realtime?.unreadCount ?? 0;
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -19,194 +15,231 @@ const Navbar = () => {
 
   const closeMenu = () => setMenuOpen(false);
 
-  useEffect(() => {
-    const nextQuery = new URLSearchParams(location.search).get('q') || '';
-    setQuery(nextQuery);
-  }, [location.search]);
-
   const search = (event) => {
     event.preventDefault();
-    navigate(query.trim() ? `/search?q=${encodeURIComponent(query.trim())}` : '/search');
+    navigate(query.trim() ? `/?q=${encodeURIComponent(query.trim())}` : '/');
     closeMenu();
   };
 
   return (
     <>
-      <header className="navbar-root navbar-sticky">
-        {/* Row 1: Logo + Actions */}
-        <div className="navbar-top-row">
-          <div className="navbar-container">
-            <div className="navbar-top-inner">
-              {/* Left: hamburger (mobile) + logo */}
-              <div className="navbar-brand-group">
-                <button
-                  className="nav-icon-btn uk-hidden@m"
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  aria-label="Mo menu"
-                >
-                  <Menu size={20} />
-                </button>
-                <Link to="/" className="navbar-logo-link" onClick={closeMenu}>
-                  <img src="/hsmart-logo.svg" alt="H-Smart" className="navbar-logo-img" />
-                  <span className="navbar-logo-text">H-Smart</span>
-                </Link>
-              </div>
+      <div className="uk-navbar-container tm-navbar-container navbar-sticky">
+        <div className="uk-container nav-shell">
+          <nav className="uk-navbar hsmart-navbar">
+            <div className="uk-navbar-left nav-left-cluster">
+              <button
+                className="uk-navbar-toggle uk-hidden@m menu-toggle-btn"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Mở menu điều hướng"
+              >
+                <Menu size={22} />
+              </button>
 
-              {/* Right: action icons */}
-              <div className="navbar-actions">
-                {isAuthenticated ? (
-                  <>
-                    <NavLink to="/wishlist" className={({ isActive }) => `nav-icon-btn${isActive ? ' active' : ''}`} title="Da luu">
-                      <Heart size={19} />
-                    </NavLink>
-                    <NavLink to="/chat" className={({ isActive }) => `nav-icon-btn${isActive ? ' active' : ''}`} title="Tin nhan">
-                      <MessageCircle size={19} />
-                    </NavLink>
-                    <NavLink to="/notifications" className={({ isActive }) => `nav-icon-btn notif-wrap${isActive ? ' active' : ''}`} title="Thong bao">
-                      <Bell size={19} />
-                      {unreadCount > 0 && (
-                        <span className="notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-                      )}
-                    </NavLink>
-                    <div className="nav-profile-wrap">
-                      <button
-                        className={`nav-icon-btn${profileDropdownOpen ? ' active' : ''}`}
-                        onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                        onBlur={() => setTimeout(() => setProfileDropdownOpen(false), 200)}
-                        title="Tai khoan"
-                      >
-                        <User size={19} />
-                      </button>
-                      {profileDropdownOpen && (
-                        <div className="nav-dropdown">
-                          <div className="nav-dropdown-name">Xin chao, {user?.fullName || user?.username}</div>
-                          <div className="nav-dropdown-divider" />
-                          <Link className="nav-dropdown-item" to="/profile" onClick={() => setProfileDropdownOpen(false)}>Ho so cua toi</Link>
-                          <Link className="nav-dropdown-item" to="/listings" onClick={() => setProfileDropdownOpen(false)}>Tin dang cua toi</Link>
-                          <Link className="nav-dropdown-item" to="/orders" onClick={() => setProfileDropdownOpen(false)}>Don hang cua toi</Link>
-                          {user?.role === 'ADMIN' && (
-                            <Link className="nav-dropdown-item" to="/admin" onClick={() => setProfileDropdownOpen(false)}>
-                              <Shield size={13} style={{ marginRight: '5px' }} />Quan tri
-                            </Link>
-                          )}
-                          <div className="nav-dropdown-divider" />
-                          <button className="nav-dropdown-item nav-dropdown-logout" onClick={logout}>
-                            <LogOut size={13} style={{ marginRight: '5px' }} />Dang xuat
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <button className="navbar-signin-btn" onClick={() => setAuthOpen(true)}>
-                    Dang nhap
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+              <Link to="/" className="uk-navbar-item uk-logo navbar-brand-logo" onClick={closeMenu}>
+                <img className="brand-logo-image" src="/hsmart-logo.svg" alt="H-Smart" />
+                <span className="brand-wordmark">H-Smart</span>
+              </Link>
 
-        {/* Row 2: Search + Nav links (desktop) */}
-        <div className="navbar-bottom-row uk-visible@s">
-          <div className="navbar-container">
-            <div className="navbar-bottom-inner">
-              {/* Search */}
-              <form className="navbar-search-form" onSubmit={search}>
-                <div className="navbar-search-wrap">
-                  <Search size={15} className="navbar-search-icon" />
-                  <input
-                    type="search"
-                    className="navbar-search-input"
-                    placeholder="Tim san pham gia dung..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                  <button type="submit" className="navbar-search-btn">Tim kiem</button>
-                </div>
-              </form>
-
-              {/* Nav links */}
-              <nav className="navbar-nav-links">
-                <NavLink to="/" end className={({ isActive }) => `navbar-nav-link${isActive ? ' active' : ''}`}>
-                  Cho do gia dung
-                </NavLink>
+              <ul className="uk-navbar-nav uk-visible@m desktop-nav-menu">
+                <li>
+                  <NavLink to="/" end className={({ isActive }) => `nav-item-link ${isActive ? 'active' : ''}`}>
+                    Chợ đồ gia dụng
+                  </NavLink>
+                </li>
                 {isAuthenticated && (
                   <>
-                    <NavLink to="/sell" className={({ isActive }) => `navbar-nav-link${isActive ? ' active' : ''}`}>
-                      Dang ban
-                    </NavLink>
-                    <NavLink to="/listings" className={({ isActive }) => `navbar-nav-link${isActive ? ' active' : ''}`}>
-                      Tin dang
-                    </NavLink>
-                    <NavLink to="/orders" className={({ isActive }) => `navbar-nav-link${isActive ? ' active' : ''}`}>
-                      Don hang
-                    </NavLink>
-                    {user?.role === 'ADMIN' && (
-                      <NavLink to="/admin" className={({ isActive }) => `navbar-nav-link admin-nav-link${isActive ? ' active' : ''}`}>
-                        <Shield size={12} style={{ marginRight: '4px' }} />Quan tri
+                    <li>
+                      <NavLink to="/sell" className={({ isActive }) => `nav-item-link ${isActive ? 'active' : ''}`}>
+                        Đăng bán
                       </NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/listings" className={({ isActive }) => `nav-item-link ${isActive ? 'active' : ''}`}>
+                        Tin đăng
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/orders" className={({ isActive }) => `nav-item-link ${isActive ? 'active' : ''}`}>
+                        Đơn hàng
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/chat" className={({ isActive }) => `nav-item-link ${isActive ? 'active' : ''}`}>
+                        Tin nhắn
+                      </NavLink>
+                    </li>
+                    {user?.role === 'ADMIN' && (
+                      <li>
+                        <NavLink to="/admin" className={({ isActive }) => `nav-item-link admin-link ${isActive ? 'active' : ''}`}>
+                          <Shield size={13} style={{ marginRight: '4px' }} /> Quản trị
+                        </NavLink>
+                      </li>
                     )}
                   </>
                 )}
-              </nav>
+              </ul>
             </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Mobile Drawer */}
+            <div className="nav-center-cluster">
+              <form className="nav-search-form uk-visible@s" onSubmit={search}>
+                <div className="search-input-wrapper">
+                  <Search size={15} className="search-icon-inside" />
+                  <input
+                    className="uk-input search-navbar-input"
+                    type="search"
+                    placeholder="Tìm sản phẩm..."
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </div>
+              </form>
+            </div>
+
+            <div className="uk-navbar-right nav-right-cluster">
+              {isAuthenticated ? (
+                <div className="navbar-actions-group">
+                  <NavLink to="/wishlist" className={({ isActive }) => `action-icon-button ${isActive ? 'active' : ''}`} title="Đã lưu">
+                    <Heart size={20} />
+                  </NavLink>
+                  <NavLink to="/notifications" className={({ isActive }) => `action-icon-button ${isActive ? 'active' : ''}`} title="Thông báo">
+                    <Bell size={20} />
+                  </NavLink>
+                  <div className="user-profile-menu-container">
+                    <button
+                      className={`action-icon-button ${profileDropdownOpen ? 'active' : ''}`}
+                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                      onBlur={() => setTimeout(() => setProfileDropdownOpen(false), 200)}
+                      title="Menu tài khoản"
+                    >
+                      <User size={20} />
+                    </button>
+                    {profileDropdownOpen && (
+                      <div className="user-dropdown-panel">
+                        <ul className="uk-nav uk-dropdown-nav">
+                          <li className="dropdown-username-header">Xin chào, {user?.fullName || user?.username}</li>
+                          <li className="uk-nav-divider"></li>
+                          <li>
+                            <Link to="/profile" onClick={() => setProfileDropdownOpen(false)}>Hồ sơ của tôi</Link>
+                          </li>
+                          <li>
+                            <Link to="/listings" onClick={() => setProfileDropdownOpen(false)}>Tin đăng của tôi</Link>
+                          </li>
+                          <li>
+                            <Link to="/orders" onClick={() => setProfileDropdownOpen(false)}>Đơn hàng của tôi</Link>
+                          </li>
+                          <li className="uk-nav-divider"></li>
+                          <li>
+                            <button className="dropdown-logout-btn" onClick={logout}>
+                              <LogOut size={14} style={{ marginRight: '6px' }} /> Đăng xuất
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <button className="uk-button uk-button-primary navbar-signin-btn" onClick={() => setAuthOpen(true)}>
+                  Đăng nhập
+                </button>
+              )}
+            </div>
+          </nav>
+        </div>
+      </div>
+
+      {/* Mobile Offcanvas Drawer (React-controlled) */}
       {menuOpen && (
         <div className="mobile-drawer-overlay" onClick={closeMenu}>
           <div className="mobile-drawer-content" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-header">
-              <span className="mobile-drawer-logo">
-                <img src="/hsmart-logo.svg" alt="H-Smart" className="navbar-logo-img" />
+              <span className="drawer-logo">
+                <img className="brand-logo-image" src="/hsmart-logo.svg" alt="H-Smart" />
                 <span>H-Smart</span>
               </span>
-              <button className="nav-icon-btn" onClick={closeMenu}><X size={20} /></button>
+              <button className="drawer-close-btn" onClick={closeMenu}>
+                <X size={20} />
+              </button>
             </div>
-
+            
             <form className="mobile-search-form" onSubmit={search}>
-              <div className="navbar-search-wrap">
-                <Search size={15} className="navbar-search-icon" />
+              <div className="search-input-wrapper">
+                <Search size={15} className="search-icon-inside" />
                 <input
+                  className="uk-input"
                   type="search"
-                  className="navbar-search-input"
-                  placeholder="Tim san pham..."
+                  placeholder="Tìm sản phẩm..."
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(event) => setQuery(event.target.value)}
                 />
               </div>
             </form>
 
-            <nav className="mobile-nav-list">
-              <NavLink to="/" end className="mobile-nav-link" onClick={closeMenu}>Cho do gia dung</NavLink>
+            <ul className="uk-nav uk-nav-default mobile-nav-menu">
+              <li>
+                <NavLink to="/" end className="mobile-nav-link" onClick={closeMenu}>
+                  Chợ đồ gia dụng
+                </NavLink>
+              </li>
               {isAuthenticated ? (
                 <>
-                  <NavLink to="/sell" className="mobile-nav-link" onClick={closeMenu}>Dang ban</NavLink>
-                  <NavLink to="/listings" className="mobile-nav-link" onClick={closeMenu}>Tin dang cua toi</NavLink>
-                  <NavLink to="/orders" className="mobile-nav-link" onClick={closeMenu}>Don hang cua toi</NavLink>
-                  <NavLink to="/wishlist" className="mobile-nav-link" onClick={closeMenu}>Da luu</NavLink>
-                  <NavLink to="/chat" className="mobile-nav-link" onClick={closeMenu}>Tin nhan</NavLink>
-                  <NavLink to="/notifications" className="mobile-nav-link" onClick={closeMenu}>Thong bao</NavLink>
-                  <NavLink to="/profile" className="mobile-nav-link" onClick={closeMenu}>Ho so cua toi</NavLink>
-                  {user?.role === 'ADMIN' && (
-                    <NavLink to="/admin" className="mobile-nav-link admin-nav-link" onClick={closeMenu}>
-                      <Shield size={14} style={{ marginRight: '6px' }} />Quan tri
+                  <li>
+                    <NavLink to="/sell" className="mobile-nav-link" onClick={closeMenu}>
+                      Đăng bán
                     </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/listings" className="mobile-nav-link" onClick={closeMenu}>
+                      Tin đăng của tôi
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/orders" className="mobile-nav-link" onClick={closeMenu}>
+                      Đơn hàng của tôi
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/wishlist" className="mobile-nav-link" onClick={closeMenu}>
+                      Đã lưu
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/chat" className="mobile-nav-link" onClick={closeMenu}>
+                      Tin nhắn
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/notifications" className="mobile-nav-link" onClick={closeMenu}>
+                      Thông báo
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/profile" className="mobile-nav-link" onClick={closeMenu}>
+                      Hồ sơ của tôi
+                    </NavLink>
+                  </li>
+                  {user?.role === 'ADMIN' && (
+                    <li>
+                      <NavLink to="/admin" className="mobile-nav-link admin-link" onClick={closeMenu}>
+                        <Shield size={14} style={{ marginRight: '6px' }} /> Bảng quản trị
+                      </NavLink>
+                    </li>
                   )}
-                  <div className="mobile-nav-divider" />
-                  <button className="mobile-nav-logout" onClick={() => { logout(); closeMenu(); }}>
-                    <LogOut size={14} style={{ marginRight: '6px' }} />Dang xuat
-                  </button>
+                  <li className="uk-nav-divider"></li>
+                  <li>
+                    <button className="mobile-logout-btn" onClick={() => { logout(); closeMenu(); }}>
+                      <LogOut size={14} style={{ marginRight: '6px' }} /> Đăng xuất
+                    </button>
+                  </li>
                 </>
               ) : (
-                <button className="mobile-signin-btn" onClick={() => { setAuthOpen(true); closeMenu(); }}>
-                  Dang nhap
-                </button>
+                <li>
+                  <button className="uk-button uk-button-primary mobile-signin-btn" onClick={() => { setAuthOpen(true); closeMenu(); }}>
+                    Đăng nhập
+                  </button>
+                </li>
               )}
-            </nav>
+            </ul>
           </div>
         </div>
       )}

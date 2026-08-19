@@ -1,14 +1,25 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Send, Sparkles, Trash2 } from 'lucide-react';
-import { apiChatAssistant, apiGetAssistantHistory, apiDeleteAssistantHistory } from '../../services/api';
+import {
+  apiChatAssistant,
+  apiDeleteAssistantHistory,
+  apiGetAssistantHistory,
+  apiStreamAssistant,
+} from '../../services/api';
 import { useUser } from '../../context/UserContext';
 import './AssistantWidget.css';
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
-  text: 'Xin chao! Toi la AI H-Smart. Toi co the ho tro dinh gia do gia dung, giai thich quy trinh kiem duyet hoac giup ban tim san pham phu hop.',
+  text: 'Xin chào! Tôi là trợ lý AI của H-Smart. Tôi có thể giúp bạn định giá đồ gia dụng, hướng dẫn đăng bán hoặc gợi ý sản phẩm phù hợp.',
   isBot: true,
 };
+
+const QUICK_PROMPTS = [
+  'Định giá đồ gia dụng cũ',
+  'Cách đăng bán sản phẩm',
+  'Gợi ý sản phẩm đáng mua',
+];
 
 const historyToMessages = (historyItems) => {
   if (!Array.isArray(historyItems) || historyItems.length === 0) return [WELCOME_MESSAGE];
@@ -35,7 +46,7 @@ const AssistantWidget = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isLoading]);
 
   const loadHistory = useCallback(async () => {
     if (historyLoaded) return;
@@ -53,29 +64,51 @@ const AssistantWidget = () => {
     if (isOpen && isAuthenticated) loadHistory();
   }, [isOpen, isAuthenticated, loadHistory]);
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!inputValue.trim()) return;
+  const upsertBot = (botId, text, extra = {}) => {
+    setMessages((prev) => {
+      const bot = { id: botId, text, isBot: true, ...extra };
+      return prev.some((message) => message.id === botId)
+        ? prev.map((message) => (message.id === botId ? bot : message))
+        : [...prev, bot];
+    });
+  };
 
-    const userMsg = inputValue;
+  const sendMessage = async (rawText) => {
+    const userMsg = rawText.trim();
+    if (!userMsg || isLoading) return;
+
     setInputValue('');
-    setMessages((prev) => [...prev, { id: Date.now(), text: userMsg, isBot: false }]);
+    const botId = `bot-${Date.now()}`;
+    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, text: userMsg, isBot: false }]);
     setIsLoading(true);
 
+    let streamed = false;
     try {
-      const response = await apiChatAssistant(userMsg);
-      const botReply = response?.reply || response?.response || response?.message || response;
-      setMessages((prev) => [...prev, { id: Date.now() + 1, text: botReply, isBot: true }]);
+      // Ưu tiên SSE để hiển thị câu trả lời theo từng token.
+      await apiStreamAssistant(userMsg, {
+        onChunk: (full) => {
+          streamed = true;
+          upsertBot(botId, full);
+        },
+      });
+      if (!streamed) throw new Error('empty-stream');
     } catch {
-      setMessages((prev) => [...prev, {
-        id: Date.now() + 1,
-        text: 'Xin loi, hien toi chua the ket noi toi dich vu AI. Vui long thu lai sau.',
-        isBot: true,
-        isError: true,
-      }]);
+      // Fallback sang chat thường nếu stream lỗi hoặc không khả dụng.
+      try {
+        const response = await apiChatAssistant(userMsg);
+        const botReply = response?.reply || response?.response || response?.message || response;
+        upsertBot(botId, botReply);
+      } catch {
+        upsertBot(botId, 'Xin lỗi, hiện chưa thể kết nối tới dịch vụ AI. Vui lòng thử lại sau.', { isError: true });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    sendMessage(inputValue);
   };
 
   const handleClearHistory = async () => {
@@ -94,65 +127,96 @@ const AssistantWidget = () => {
 
   if (!isAuthenticated) return null;
 
+  const showSuggestions = messages.length <= 1 && !isLoading;
+  const lastMessage = messages[messages.length - 1];
+  const showTyping = isLoading && (!lastMessage || !lastMessage.isBot);
+
   return (
-    <div className="assistant-widget-container">
+    <div className="aiw-root">
       {!isOpen && (
-        <button className="assistant-toggle-btn" onClick={() => setIsOpen(true)}>
-          <Sparkles size={20} className="pulse-anim" />
-          <span>Hoi AI</span>
+        <button className="aiw-fab" onClick={() => setIsOpen(true)} aria-label="Mở trợ lý AI">
+          <span className="aiw-fab-icon"><Sparkles size={18} /></span>
+          <span>Hỏi AI</span>
         </button>
       )}
 
       {isOpen && (
-        <div className="assistant-chat-window">
-          <div className="chat-header">
-            <div className="flex items-center gap-2">
-              <div className="bot-avatar"><Bot size={16} /></div>
-              <span className="font-bold text-sm">Tro ly H-Smart</span>
+        <div className="aiw-window" role="dialog" aria-label="Trợ lý AI H-Smart">
+          <div className="aiw-header">
+            <div className="aiw-header-peer">
+              <span className="aiw-bot-avatar"><Bot size={18} /></span>
+              <div className="aiw-header-info">
+                <strong>Trợ lý H-Smart</strong>
+                <span><i /> Luôn sẵn sàng hỗ trợ</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="aiw-header-actions">
               <button
-                className="close-btn"
-                title="Xoa lich su hoi thoai"
-                aria-label="Xoa lich su hoi thoai"
+                type="button"
+                className="aiw-icon-btn"
+                title="Xóa lịch sử hội thoại"
+                aria-label="Xóa lịch sử hội thoại"
                 onClick={handleClearHistory}
                 disabled={isClearing}
               >
-                <Trash2 size={15} />
+                <Trash2 size={16} />
               </button>
-              <button className="close-btn" onClick={() => setIsOpen(false)} aria-label="Dong">
-                <X size={16} />
+              <button
+                type="button"
+                className="aiw-icon-btn"
+                title="Đóng"
+                aria-label="Đóng"
+                onClick={() => setIsOpen(false)}
+              >
+                <X size={18} />
               </button>
             </div>
           </div>
 
-          <div className="chat-messages">
+          <div className="aiw-messages">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`message-bubble ${msg.isBot ? 'bot' : 'user'} ${msg.isError ? 'error' : ''}`}
+                className={`aiw-bubble ${msg.isBot ? 'bot' : 'user'} ${msg.isError ? 'error' : ''}`}
               >
                 {msg.text}
               </div>
             ))}
-            {isLoading && (
-              <div className="message-bubble bot loading-bubble">
-                <span className="dot" /><span className="dot" /><span className="dot" />
+
+            {showSuggestions && (
+              <div className="aiw-suggestions">
+                {QUICK_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="aiw-chip"
+                    onClick={() => sendMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showTyping && (
+              <div className="aiw-bubble bot aiw-typing">
+                <span className="aiw-dot" /><span className="aiw-dot" /><span className="aiw-dot" />
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <form className="chat-input-area" onSubmit={handleSend}>
+          <form className="aiw-composer" onSubmit={handleSubmit}>
             <input
               type="text"
-              placeholder="Nhap cau hoi..."
+              placeholder="Nhập câu hỏi…"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(event) => setInputValue(event.target.value)}
               disabled={isLoading}
+              aria-label="Nội dung câu hỏi"
             />
-            <button type="submit" disabled={!inputValue.trim() || isLoading}>
-              <Send size={16} />
+            <button type="submit" className="aiw-send" disabled={!inputValue.trim() || isLoading} aria-label="Gửi">
+              <Send size={17} />
             </button>
           </form>
         </div>

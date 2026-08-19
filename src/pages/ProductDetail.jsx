@@ -5,9 +5,7 @@ import {
   Heart,
   MapPin,
   MessageCircle,
-  Minus,
   Percent,
-  Plus,
   ShieldCheck,
   ShoppingCart,
   Star,
@@ -15,14 +13,13 @@ import {
   Truck,
   X,
 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import ProductCard from '../components/common/ProductCard';
 import StatusBadge from '../components/common/StatusBadge';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import {
   apiCreateOffer,
-  apiCreateOrder,
   apiEstimateGuestShipping,
   apiEstimateShipping,
   apiFetchDistricts,
@@ -33,21 +30,19 @@ import {
   apiSubmitReport,
   apiToggleWishlist,
 } from '../services/api';
-import { rememberOrderId } from '../services/orderHistory';
+import { startDepositCheckout } from '../services/payment';
 import './ProductDetail.css';
 
 const formatPrice = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, user } = useUser();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [reportReason, setReportReason] = useState('');
-  const [quantity, setQuantity] = useState(1);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState(false);
   const [showOfferConfirm, setShowOfferConfirm] = useState(false);
   const [showGuestShippingModal, setShowGuestShippingModal] = useState(false);
@@ -207,13 +202,11 @@ const ProductDetail = () => {
 
     try {
       setIsOrdering(true);
-      const order = await apiCreateOrder(product.id, deliveryMethod);
-      rememberOrderId(order.id);
-      toast.success(`Đặt hàng thành công. Mã đơn của bạn là #${order.id}.`);
-      navigate(`/orders?orderId=${order.id}`);
+      // Tạo cọc rồi chuyển sang VNPay. Đơn hàng chỉ được tạo sau khi trả cọc.
+      await startDepositCheckout(product.id, deliveryMethod);
+      // Trình duyệt sẽ rời trang sang cổng VNPay; không reset trạng thái ở đây.
     } catch (requestError) {
       setError(requestError.message);
-    } finally {
       setIsOrdering(false);
     }
   };
@@ -311,6 +304,9 @@ const ProductDetail = () => {
   const sellerLocation = [product.sellerDistrict, product.sellerProvince].filter(Boolean).join(', ');
   const selectedOfferPrice = Math.round(Number(product.price || 0) * (100 - selectedDiscountPercent) / 100);
   const estimatedShippingFee = shippingEstimate?.shippingFee;
+  const isNegotiable = Boolean(product.negotiable);
+  const minPrice = product.minPrice != null ? Number(product.minPrice) : null;
+  const offerBelowMin = isNegotiable && minPrice != null && selectedOfferPrice < minPrice;
 
   return (
     <main className="shopee-detail-page">
@@ -380,6 +376,12 @@ const ProductDetail = () => {
             <div className="price-band">
               <span className="original-price">{formatPrice(comparePrice)}</span>
               <strong>{formatPrice(product.price)}</strong>
+              {isNegotiable ? (
+                <span className="negotiable-hint">
+                  <Percent size={13} />
+                  Có thể trả giá{minPrice != null ? ` · tối thiểu ${formatPrice(minPrice)}` : ''}
+                </span>
+              ) : null}
             </div>
 
             <dl className="purchase-options">
@@ -421,18 +423,6 @@ const ProductDetail = () => {
                   <button className="variant-chip" type="button">Còn hàng</button>
                 </dd>
               </div>
-              <div>
-                <dt>Số lượng</dt>
-                <dd className="quantity-control">
-                  <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>
-                    <Minus size={13} />
-                  </button>
-                  <span>{quantity}</span>
-                  <button type="button" onClick={() => setQuantity((value) => value + 1)}>
-                    <Plus size={13} />
-                  </button>
-                </dd>
-              </div>
             </dl>
 
             <div className="detail-alert-stack">
@@ -449,10 +439,12 @@ const ProductDetail = () => {
                 <button className="solid-orange-button" onClick={openPurchaseConfirm} disabled={!isApproved} type="button">
                   Mua ngay
                 </button>
-                <button className="outline-gray-button" onClick={openOfferConfirm} disabled={!isApproved} type="button">
-                  <Percent size={16} />
-                  Trả giá
-                </button>
+                {isNegotiable ? (
+                  <button className="outline-gray-button" onClick={openOfferConfirm} disabled={!isApproved} type="button">
+                    <Percent size={16} />
+                    Trả giá
+                  </button>
+                ) : null}
                 <Link
                   className="outline-gray-button"
                   to={`/chat?participantId=${encodeURIComponent(product.sellerId)}&productId=${product.id}`}
@@ -469,30 +461,30 @@ const ProductDetail = () => {
           </div>
         </section>
 
-        <section className="seller-shop-strip">
-          <div className="seller-identity">
-            <div className="seller-avatar-shop"><Store size={24} /></div>
-            <div>
-              <strong>{product.sellerId}</strong>
-              <span>Online gần đây</span>
-              <div className="seller-shop-actions">
-                <Link to={`/chat?participantId=${encodeURIComponent(product.sellerId)}&productId=${product.id}`}>
-                  <MessageCircle size={14} />
-                  Chat ngay
-                </Link>
-                <Link to="/">Xem shop</Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="seller-shop-stats">
-            <div><span>Đánh giá</span><strong>{reviews.length}</strong></div>
-            <div><span>Điểm trung bình</span><strong>{sellerStats.displayRating}</strong></div>
-          </div>
-        </section>
-
         <div className="detail-content-layout">
           <div className="detail-content-main">
+            <section className="seller-shop-strip">
+              <div className="seller-identity">
+                <div className="seller-avatar-shop"><Store size={24} /></div>
+                <div>
+                  <strong>{product.sellerId}</strong>
+                  <span>Online gần đây</span>
+                  <div className="seller-shop-actions">
+                    <Link to={`/chat?participantId=${encodeURIComponent(product.sellerId)}&productId=${product.id}`}>
+                      <MessageCircle size={14} />
+                      Chat ngay
+                    </Link>
+                    <Link to="/">Xem shop</Link>
+                  </div>
+                </div>
+              </div>
+
+              <div className="seller-shop-stats">
+                <div><span>Đánh giá</span><strong>{reviews.length}</strong></div>
+                <div><span>Điểm trung bình</span><strong>{sellerStats.displayRating}</strong></div>
+              </div>
+            </section>
+
             <section className="detail-info-block">
               <h2>Chi tiết sản phẩm</h2>
               <dl>
@@ -593,9 +585,10 @@ const ProductDetail = () => {
             >
               <X size={18} />
             </button>
-            <h2 id="purchase-confirm-title">Xác nhận đặt hàng</h2>
+            <h2 id="purchase-confirm-title">Thanh toán cọc để đặt hàng</h2>
             <p className="purchase-confirm-copy">
-              Kiểm tra lại sản phẩm và phương thức giao hàng trước khi tạo đơn. Sau bước này người bán sẽ nhận được yêu cầu xác nhận.
+              Bạn cần thanh toán <strong>cọc = phí vận chuyển</strong> qua VNPay trước khi đơn hàng được tạo.
+              Sau khi trả cọc thành công, đơn sẽ tự được tạo và người bán nhận yêu cầu xác nhận.
             </p>
 
             <div className="purchase-confirm-product">
@@ -639,25 +632,28 @@ const ProductDetail = () => {
 
             <dl className="purchase-confirm-total">
               <div>
-                <dt>Tạm tính</dt>
+                <dt>Giá sản phẩm</dt>
                 <dd>{formatPrice(product.price)}</dd>
               </div>
               <div>
                 <dt>Phí vận chuyển</dt>
-                <dd>{estimatedShippingFee != null ? formatPrice(estimatedShippingFee) : 'Tính khi tạo đơn'}</dd>
+                <dd>{estimatedShippingFee != null ? formatPrice(estimatedShippingFee) : 'Tính khi tạo cọc'}</dd>
               </div>
-              <div>
-                <dt>Tổng dự kiến</dt>
-                <dd>{estimatedShippingFee != null ? formatPrice(Number(product.price || 0) + Number(estimatedShippingFee || 0)) : formatPrice(product.price)}</dd>
+              <div className="deposit-highlight">
+                <dt>Cọc cần thanh toán ngay</dt>
+                <dd>{estimatedShippingFee != null ? formatPrice(estimatedShippingFee) : 'Tính khi tạo cọc'}</dd>
               </div>
             </dl>
+            <p className="purchase-confirm-note">
+              Giá sản phẩm ({formatPrice(product.price)}) được thanh toán cho người bán khi nhận hàng. Cọc sẽ được hoàn/đối trừ theo trạng thái đơn.
+            </p>
 
             <div className="purchase-confirm-actions">
               <button className="outline-gray-button" type="button" onClick={() => setShowPurchaseConfirm(false)}>
                 Quay lại
               </button>
               <button className="solid-orange-button" type="button" onClick={buyProduct} disabled={isOrdering}>
-                {isOrdering ? 'Đang tạo đơn...' : 'Xác nhận đặt hàng'}
+                {isOrdering ? 'Đang chuyển tới VNPay...' : 'Thanh toán cọc qua VNPay'}
               </button>
             </div>
           </section>
@@ -684,29 +680,41 @@ const ProductDetail = () => {
               <div>
                 <strong>{product.title}</strong>
                 <span>Giá niêm yết: {formatPrice(product.price)}</span>
+                {minPrice != null ? <span>Giá tối thiểu người bán chấp nhận: {formatPrice(minPrice)}</span> : null}
                 <b>Giá đề nghị: {formatPrice(selectedOfferPrice)}</b>
               </div>
             </div>
 
             <div className="offer-discount-grid" role="group" aria-label="Chọn mức giảm giá">
-              {[5, 10, 15].map((percent) => (
-                <button
-                  key={percent}
-                  type="button"
-                  className={selectedDiscountPercent === percent ? 'active' : ''}
-                  onClick={() => setSelectedDiscountPercent(percent)}
-                >
-                  <span>Giảm {percent}%</span>
-                  <strong>{formatPrice(Math.round(Number(product.price || 0) * (100 - percent) / 100))}</strong>
-                </button>
-              ))}
+              {[5, 10, 15].map((percent) => {
+                const presetPrice = Math.round(Number(product.price || 0) * (100 - percent) / 100);
+                const presetBelowMin = minPrice != null && presetPrice < minPrice;
+                return (
+                  <button
+                    key={percent}
+                    type="button"
+                    className={selectedDiscountPercent === percent ? 'active' : ''}
+                    onClick={() => setSelectedDiscountPercent(percent)}
+                  >
+                    <span>Giảm {percent}%</span>
+                    <strong>{formatPrice(presetPrice)}</strong>
+                    {presetBelowMin ? <em className="offer-below-min">Dưới giá sàn</em> : null}
+                  </button>
+                );
+              })}
             </div>
+
+            {offerBelowMin ? (
+              <div className="detail-alert detail-alert-error offer-warning">
+                <p>Giá đề nghị thấp hơn giá tối thiểu {formatPrice(minPrice)} của người bán. Vui lòng chọn mức cao hơn.</p>
+              </div>
+            ) : null}
 
             <div className="purchase-confirm-actions">
               <button className="outline-gray-button" type="button" onClick={() => setShowOfferConfirm(false)}>
                 Hủy
               </button>
-              <button className="solid-orange-button" type="button" onClick={submitOffer} disabled={isSubmittingOffer}>
+              <button className="solid-orange-button" type="button" onClick={submitOffer} disabled={isSubmittingOffer || offerBelowMin}>
                 {isSubmittingOffer ? 'Đang gửi...' : 'Gửi trả giá'}
               </button>
             </div>
@@ -783,10 +791,12 @@ const ProductDetail = () => {
             <MessageCircle size={18} />
             Chat ngay
           </Link>
-          <button className="mobile-offer-action" onClick={openOfferConfirm} disabled={!isApproved} type="button">
-            <Percent size={18} />
-            Trả giá
-          </button>
+          {isNegotiable ? (
+            <button className="mobile-offer-action" onClick={openOfferConfirm} disabled={!isApproved} type="button">
+              <Percent size={18} />
+              Trả giá
+            </button>
+          ) : null}
           <button className="mobile-buy-action" onClick={openPurchaseConfirm} disabled={!isApproved} type="button">
             Mua ngay
           </button>

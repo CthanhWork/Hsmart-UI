@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bell, Heart, LogOut, Menu, Search, Shield, User, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bell, ClipboardList, Heart, LogOut, Menu, Search, Shield, ShoppingBag, User, X } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
 import AuthModal from '../Auth/AuthModal';
@@ -12,8 +12,30 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const profileMenuRef = useRef(null);
 
   const closeMenu = () => setMenuOpen(false);
+  const closeProfileMenu = () => setProfileDropdownOpen(false);
+
+  useEffect(() => {
+    if (!profileDropdownOpen) return undefined;
+
+    const handlePointer = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setProfileDropdownOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [profileDropdownOpen]);
 
   const search = (event) => {
     event.preventDefault();
@@ -104,36 +126,59 @@ const Navbar = () => {
                   <NavLink to="/notifications" className={({ isActive }) => `action-icon-button ${isActive ? 'active' : ''}`} title="Thông báo">
                     <Bell size={20} />
                   </NavLink>
-                  <div className="user-profile-menu-container">
+                  <div className="user-profile-menu-container" ref={profileMenuRef}>
                     <button
-                      className={`action-icon-button ${profileDropdownOpen ? 'active' : ''}`}
-                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                      onBlur={() => setTimeout(() => setProfileDropdownOpen(false), 200)}
-                      title="Menu tài khoản"
+                      className={`action-icon-button profile-avatar-button ${profileDropdownOpen ? 'active' : ''}`}
+                      onClick={() => setProfileDropdownOpen((open) => !open)}
+                      title="Tài khoản của tôi"
+                      aria-haspopup="true"
+                      aria-expanded={profileDropdownOpen}
                     >
-                      <User size={20} />
+                      {user?.avatarUrl
+                        ? <img className="nav-avatar-img" src={user.avatarUrl} alt="Ảnh đại diện" />
+                        : <User size={20} />}
                     </button>
                     {profileDropdownOpen && (
-                      <div className="user-dropdown-panel">
-                        <ul className="uk-nav uk-dropdown-nav">
-                          <li className="dropdown-username-header">Xin chào, {user?.fullName || user?.username}</li>
-                          <li className="uk-nav-divider"></li>
-                          <li>
-                            <Link to="/profile" onClick={() => setProfileDropdownOpen(false)}>Hồ sơ của tôi</Link>
-                          </li>
-                          <li>
-                            <Link to="/listings" onClick={() => setProfileDropdownOpen(false)}>Tin đăng của tôi</Link>
-                          </li>
-                          <li>
-                            <Link to="/orders" onClick={() => setProfileDropdownOpen(false)}>Đơn hàng của tôi</Link>
-                          </li>
-                          <li className="uk-nav-divider"></li>
-                          <li>
-                            <button className="dropdown-logout-btn" onClick={logout}>
-                              <LogOut size={14} style={{ marginRight: '6px' }} /> Đăng xuất
-                            </button>
-                          </li>
-                        </ul>
+                      <div className="account-menu" role="menu">
+                        <div className="account-menu-head">
+                          <span className="account-menu-avatar">
+                            {user?.avatarUrl
+                              ? <img src={user.avatarUrl} alt="" />
+                              : (user?.fullName || user?.username || 'U').slice(0, 1).toUpperCase()}
+                          </span>
+                          <div className="account-menu-id">
+                            <strong>{user?.fullName || user?.username}</strong>
+                            <span>{user?.email}</span>
+                          </div>
+                        </div>
+
+                        <div className="account-menu-divider" />
+
+                        <nav className="account-menu-list">
+                          <Link to="/profile" role="menuitem" onClick={closeProfileMenu}>
+                            <User size={17} /> Tài khoản của tôi
+                          </Link>
+                          <Link to="/listings" role="menuitem" onClick={closeProfileMenu}>
+                            <ClipboardList size={17} /> Tin đăng của tôi
+                          </Link>
+                          <Link to="/orders" role="menuitem" onClick={closeProfileMenu}>
+                            <ShoppingBag size={17} /> Đơn hàng của tôi
+                          </Link>
+                          <Link to="/wishlist" role="menuitem" onClick={closeProfileMenu}>
+                            <Heart size={17} /> Sản phẩm đã lưu
+                          </Link>
+                        </nav>
+
+                        <div className="account-menu-divider" />
+
+                        <button
+                          type="button"
+                          className="account-menu-logout"
+                          role="menuitem"
+                          onClick={() => { closeProfileMenu(); logout(); }}
+                        >
+                          <LogOut size={17} /> Đăng xuất
+                        </button>
                       </div>
                     )}
                   </div>
@@ -174,6 +219,20 @@ const Navbar = () => {
                 />
               </div>
             </form>
+
+            {isAuthenticated && (
+              <Link to="/profile" className="mobile-account-row" onClick={closeMenu}>
+                <span className="mobile-account-avatar">
+                  {user?.avatarUrl
+                    ? <img src={user.avatarUrl} alt="" />
+                    : (user?.fullName || user?.username || 'U').slice(0, 1).toUpperCase()}
+                </span>
+                <span className="mobile-account-text">
+                  <strong>{user?.fullName || user?.username}</strong>
+                  <small translate="no">@{user?.username}</small>
+                </span>
+              </Link>
+            )}
 
             <ul className="uk-nav uk-nav-default mobile-nav-menu">
               <li>

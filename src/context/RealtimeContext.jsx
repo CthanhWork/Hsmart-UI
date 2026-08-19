@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createChatClient } from '../services/chatClient';
+import { apiFetchNotificationUnreadCount, apiMarkAllNotificationsRead } from '../services/api';
 import { useUser } from './UserContext';
 
 const RealtimeContext = createContext(null);
@@ -13,6 +14,17 @@ export const RealtimeProvider = ({ children }) => {
   const messageHandlerRef = useRef(null);
 
   const currentUserId = String(user?.username || user?.id || '');
+
+  // Khởi tạo số chưa đọc từ server (realtime chỉ cộng dồn sự kiện mới).
+  useEffect(() => {
+    if (!currentUserId) {
+      setUnreadCount(0);
+      return;
+    }
+    apiFetchNotificationUnreadCount()
+      .then((count) => setUnreadCount(Number(count) || 0))
+      .catch(() => {});
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!currentUserId) return undefined;
@@ -51,7 +63,15 @@ export const RealtimeProvider = ({ children }) => {
     messageHandlerRef.current = handler;
   }, []);
 
-  const clearUnread = useCallback(() => setUnreadCount(0), []);
+  // Đánh dấu tất cả đã đọc cả ở local lẫn server.
+  const clearUnread = useCallback(() => {
+    setUnreadCount(0);
+    apiMarkAllNotificationsRead().catch(() => {});
+  }, []);
+
+  const decrementUnread = useCallback((by = 1) => {
+    setUnreadCount((prev) => Math.max(0, prev - by));
+  }, []);
 
   return (
     <RealtimeContext.Provider value={{
@@ -61,6 +81,7 @@ export const RealtimeProvider = ({ children }) => {
       publishMessage,
       setMessageHandler,
       clearUnread,
+      decrementUnread,
     }}>
       {children}
     </RealtimeContext.Provider>

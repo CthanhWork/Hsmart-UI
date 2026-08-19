@@ -10,7 +10,9 @@ const ProductEdit = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({ title: '', description: '', price: '', categoryId: '', status: '' });
+  const [form, setForm] = useState({
+    title: '', description: '', price: '', categoryId: '', status: '', negotiable: false, minPrice: '',
+  });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,6 +25,8 @@ const ProductEdit = () => {
           price: String(product.price),
           categoryId: String(product.categoryId || ''),
           status: product.status === 'SOLD' ? 'SOLD' : '',
+          negotiable: Boolean(product.negotiable),
+          minPrice: product.minPrice != null ? String(product.minPrice) : '',
         });
       })
       .catch((requestError) => setError(requestError.message));
@@ -30,9 +34,31 @@ const ProductEdit = () => {
 
   const submit = async (event) => {
     event.preventDefault();
+    setError('');
+
+    if (form.negotiable) {
+      const minPriceValue = Number(form.minPrice);
+      if (form.minPrice === '' || minPriceValue <= 0) {
+        setError('Giá sàn phải lớn hơn 0 khi cho phép trả giá.');
+        return;
+      }
+      if (minPriceValue >= Number(form.price)) {
+        setError('Giá sàn phải nhỏ hơn giá niêm yết.');
+        return;
+      }
+    }
+
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => {
-      if (key !== 'status' || value) body.append(key, value);
+      if (key === 'status') {
+        if (value) body.append(key, value);
+        return;
+      }
+      if (key === 'minPrice') {
+        if (form.negotiable && value !== '') body.append(key, value);
+        return;
+      }
+      body.append(key, value);
     });
     try {
       await apiUpdateProduct(id, body);
@@ -62,6 +88,30 @@ const ProductEdit = () => {
           <label>Trạng thái<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
             <option value="">Giữ trạng thái hiện tại</option><option value="SOLD">Đánh dấu đã bán</option>
           </select></label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.negotiable}
+              onChange={(event) => setForm({
+                ...form,
+                negotiable: event.target.checked,
+                minPrice: event.target.checked ? form.minPrice : '',
+              })}
+            />
+            Cho phép người mua trả giá
+          </label>
+          {form.negotiable ? (
+            <label>Giá sàn (VND)
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                value={form.minPrice}
+                onChange={(event) => setForm({ ...form, minPrice: event.target.value })}
+                placeholder="Phải nhỏ hơn giá niêm yết"
+              />
+            </label>
+          ) : null}
           <label className="full-field">Mô tả<textarea rows="7" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           {error ? <div className="feedback feedback-error">{error}</div> : null}
           <div className="form-actions"><button className="btn btn-primary"><Save size={16} /> Lưu tin đăng</button></div>

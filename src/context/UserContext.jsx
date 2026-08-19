@@ -1,8 +1,13 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import { apiLogin, apiGetProfile } from '../services/api';
+import { apiLogin, apiGetProfile, apiLogout, resolveMediaUrl } from '../services/api';
 import { useToast } from './ToastContext';
 
 const UserContext = createContext();
+
+// Đảm bảo avatarUrl luôn trỏ về origin app dùng được (tránh lỗi cert host nội bộ).
+const normalizeUser = (rawUser) => (rawUser
+  ? { ...rawUser, avatarUrl: resolveMediaUrl(rawUser.avatarUrl) }
+  : rawUser);
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useUser = () => useContext(UserContext);
@@ -22,7 +27,7 @@ export const UserProvider = ({ children }) => {
       }
       try {
         const profileData = await apiGetProfile();
-        setUser(profileData);
+        setUser(normalizeUser(profileData));
       } catch (err) {
         console.error('Failed to load user profile. Token might be invalid.', err);
         localStorage.removeItem('hsmart_token');
@@ -38,11 +43,11 @@ export const UserProvider = ({ children }) => {
   const login = async (username, password) => {
     const response = await apiLogin(username, password);
     setToken(response.accessToken);
-    let nextUser = response.user;
+    let nextUser = normalizeUser(response.user);
     if (response.user) {
-      setUser(response.user);
+      setUser(nextUser);
     } else {
-      const profile = await apiGetProfile();
+      const profile = normalizeUser(await apiGetProfile());
       nextUser = profile;
       setUser(profile);
     }
@@ -51,13 +56,17 @@ export const UserProvider = ({ children }) => {
   };
 
   const refreshProfile = async () => {
-    const profile = await apiGetProfile();
+    const profile = normalizeUser(await apiGetProfile());
     setUser(profile);
     return profile;
   };
 
-  const logout = () => {
-    localStorage.removeItem('hsmart_token');
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch {
+      // Best-effort revoke; clear local session regardless.
+    }
     setToken(null);
     setUser(null);
     toast.info('Bạn đã đăng xuất khỏi H-Smart.');

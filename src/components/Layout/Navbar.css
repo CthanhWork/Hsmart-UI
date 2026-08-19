@@ -11,8 +11,12 @@
   z-index: 980;
 }
 
-.nav-shell {
-  max-width: 1280px;
+.uk-container.nav-shell {
+  max-width: var(--shell-max-width);
+  width: min(calc(100% - var(--page-shell-inline)), var(--shell-max-width));
+  margin: 0 auto;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .hsmart-navbar {
@@ -128,6 +132,75 @@
   position: relative;
 }
 
+.profile-avatar-button {
+  overflow: hidden;
+  padding: 0;
+}
+
+.profile-avatar-button.active,
+.profile-avatar-button:has(.nav-avatar-img) {
+  border-color: var(--border);
+}
+
+.nav-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.mobile-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-muted, #f5f5f5);
+  color: var(--text-main);
+  text-decoration: none;
+}
+
+.mobile-account-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fff5f1;
+  color: #ee4d2d;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mobile-account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-account-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobile-account-text strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-account-text small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .search-input-wrapper {
   position: relative;
   width: 100%;
@@ -159,18 +232,18 @@
   box-shadow: none !important;
 }
 
-.user-dropdown-panel {
+.account-menu {
   position: absolute;
   top: 48px;
   right: 0;
   z-index: 1000;
-  width: 210px;
-  padding: 10px;
-  border: 1px solid var(--border);
+  width: 248px;
+  padding: 6px;
+  border: 1px solid #f0f0f0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--shadow-lg);
-  animation: slideDownIn 180ms ease-out;
+  background: #fff;
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.22);
+  animation: slideDownIn 160ms ease-out;
 }
 
 @keyframes slideDownIn {
@@ -185,34 +258,108 @@
   }
 }
 
-.dropdown-username-header {
-  padding: 8px 10px;
-  color: var(--text-main);
-  font-size: 13px;
-  font-weight: 650;
+.account-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
 }
 
-.user-dropdown-panel ul.uk-dropdown-nav li a,
-.dropdown-logout-btn {
+.account-menu-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fff5f1;
+  color: #ee4d2d;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.account-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-menu-id {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.account-menu-id strong {
+  overflow: hidden;
+  color: #333;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-id span {
+  overflow: hidden;
+  color: #999;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: #f0f0f0;
+}
+
+.account-menu-list {
+  display: grid;
+}
+
+.account-menu-list a,
+.account-menu-logout {
   display: flex;
   width: 100%;
   align-items: center;
-  border-radius: 7px;
-  color: var(--text-muted);
-  font-size: 13px;
+  gap: 10px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #555;
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 8px 10px;
   text-align: left;
+  cursor: pointer;
 }
 
-.user-dropdown-panel ul.uk-dropdown-nav li a:hover,
-.dropdown-logout-btn:hover {
-  background: var(--bg-muted);
-  color: var(--text-main);
+.account-menu-list a svg,
+.account-menu-logout svg {
+  flex: none;
+  color: #999;
 }
 
-.dropdown-logout-btn {
+.account-menu-list a:hover {
+  background: #fff5f1;
+  color: #ee4d2d;
+}
+
+.account-menu-list a:hover svg {
+  color: #ee4d2d;
+}
+
+.account-menu-logout {
   color: #dc2626;
+}
+
+.account-menu-logout svg {
+  color: #dc2626;
+}
+
+.account-menu-logout:hover {
+  background: #fef2f2;
 }
 
 .navbar-signin-btn {
@@ -347,6 +494,10 @@
 }
 
 @media (max-width: 640px) {
+  .uk-container.nav-shell {
+    width: calc(100% - var(--page-shell-inline-mobile));
+  }
+
   .brand-wordmark {
     display: none;
   }

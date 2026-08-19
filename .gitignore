@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 .vercel
+
+dist-deploy/
+temp_downloads/
+tmp_*.jpg
+*.jpg
+*.png

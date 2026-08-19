@@ -6,7 +6,7 @@
 }
 
 .shopee-detail-shell {
-  width: min(100% - 24px, 1200px);
+  width: min(calc(100% - var(--page-shell-inline)), var(--shell-max-width));
   margin: 0 auto;
 }
 
@@ -49,7 +49,7 @@
 
 .shopee-product-main {
   display: grid;
-  grid-template-columns: 452px minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
   gap: 28px;
   padding: 16px;
 }
@@ -419,9 +419,8 @@
 
 .seller-shop-strip {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 28px;
-  margin-top: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
   padding: 20px;
 }
 
@@ -987,7 +986,7 @@
 
 @media (max-width: 760px) {
   .shopee-detail-shell {
-    width: min(100% - 16px, 640px);
+    width: calc(100% - var(--page-shell-inline-mobile));
   }
 
   .shopee-detail-page {
@@ -1099,4 +1098,43 @@
   .offer-discount-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Thương lượng giá & cọc VNPay */
+.negotiable-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff3ee;
+  color: #ee4d2d;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.purchase-confirm-total .deposit-highlight dt,
+.purchase-confirm-total .deposit-highlight dd {
+  color: #ee4d2d;
+  font-weight: 700;
+}
+
+.purchase-confirm-note {
+  margin: 12px 0 0;
+  font-size: 0.82rem;
+  color: #777;
+  line-height: 1.5;
+}
+
+.offer-warning {
+  margin-top: 12px;
+}
+
+.offer-below-min {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  font-style: normal;
+  color: #c0392b;
 }

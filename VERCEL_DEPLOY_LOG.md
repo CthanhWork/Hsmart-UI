@@ -1,126 +1,113 @@
-# Vercel deploy log
+# H-Smart Frontend Deployment Note
 
-Last updated: 2026-06-19 (Asia/Saigon)  
+Updated: 2026-07-09 (Asia/Saigon)  
 Workspace: `D:\H-smart UI`
 
-## Project binding
+## 1) Current production target
 
-- Project name: `h-smart-ui`
-- Vercel project ID: `prj_Xj4Iqkzq7mP572fsnOozUU0X4sJ4`
-- Vercel org/team ID: `team_4G65xgbcu92WdIj8AY2sDTcg`
+Production is served from VPS + nginx, not Vercel.
 
-- [.vercel/project.json](D:/H-smart UI/.vercel/project.json)
+- Public site: `https://hsmart.thatcherdev.id.vn`
+- SSH user: `hoangchithanh23072003@100.110.169.59`
+- SSH key: `~/.ssh/id_rsa_hsmart_new`
+- Live static root: `/var/www/h-smart-ui`
+- Browser API base: `/api/v1`
+- Backend gateway behind nginx: `http://127.0.0.1:8000`
 
-Contents:
+Nginx responsibilities:
 
-```json
-{"projectId":"prj_Xj4Iqkzq7mP572fsnOozUU0X4sJ4","orgId":"team_4G65xgbcu92WdIj8AY2sDTcg","projectName":"h-smart-ui"}
+- `/` serves the React static bundle
+- SPA routes such as `/search`, `/admin`, `/verify-email`, `/reset-password` fall back to `index.html`
+- `/api/v1/*` proxies to the backend gateway
+
+## 2) Required production env
+
+Always build the frontend with:
+
+```env
+VITE_API_BASE_URL=/api/v1
+VITE_USE_MOCK=false
 ```
 
-## Current production deployment
+Do not build production with any direct backend hostname such as the old `tail0e1958.ts.net` endpoint.
 
-- Commit deployed: `local workspace deploy`
-- Deployment ID: `dpl_7BN7Kcu5ufJKaecqXqZjt9H8GsTW`
-- Production deployment URL: `https://h-smart-y9trvmn3n-thatcher1.vercel.app`
-- Production alias: `https://h-smart-ui.vercel.app`
-- Custom domain: `https://hsmart.thatcherdev.id.vn`
-- Deployment state: `READY`
-- Verified on: 2026-06-19
+## 3) Current deploy flow
 
-## Environment variables in use
+### Local build
 
-These are frontend `VITE_*` variables, so they are client-visible by design.
-
-### Production
-
-- `VITE_API_BASE_URL=/api/v1`
-- `VITE_USE_MOCK=false`
-
-### Preview (`develop`)
-
-- `VITE_API_BASE_URL=/api/v1`
-- `VITE_USE_MOCK=false`
-
-### Development
-
-- `VITE_API_BASE_URL=/api/v1`
-- `VITE_USE_MOCK=false`
-
-## Vercel routing config
-
-File:
-
-- [vercel.json](D:/H-smart UI/vercel.json)
-
-Contents:
-
-```json
-{
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://instance-20260601-031713.tail0e1958.ts.net/api/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
-
-Meaning:
-
-- Browser requests to `/api/*` stay same-origin on the frontend domain
-- Vercel proxies `/api/*` to the backend gateway through the Funnel URL
-- SPA routes such as `/verify-email` and `/reset-password` are rewritten to `index.html`
-- React Router handles the final route on the client
-
-## Backend target expected by frontend
-
-- API Gateway public entry: `https://instance-20260601-031713.tail0e1958.ts.net`
-- Frontend API base in browser: `/api/v1`
-- Vercel upstream target for `/api/*`: `https://instance-20260601-031713.tail0e1958.ts.net/api/*`
-- Backend `FRONTEND_BASE_URL` on VPS: `https://hsmart.thatcherdev.id.vn`
-- Backend allowed origins include:
-  - `http://localhost:3000`
-  - `http://localhost:5173`
-  - `https://hsmart.thatcherdev.id.vn`
-  - `https://instance-20260601-031713.tail0e1958.ts.net`
-
-## VPS public access note
-
-The VPS currently exposes the gateway through Tailscale Funnel:
-
-- Funnel URL: `https://instance-20260601-031713.tail0e1958.ts.net`
-- Funnel target: `http://127.0.0.1:8000`
-
-Checked status on VPS:
-
-- `docker compose -f docker-compose-gcp.yml ps` shows `api-gateway` healthy
-- `curl http://127.0.0.1:8000/health` returned `200`
-
-## Quick verification checklist
-
-- `https://hsmart.thatcherdev.id.vn` loads
-- `https://hsmart.thatcherdev.id.vn/verify-email` returns the new frontend bundle
-- `https://hsmart.thatcherdev.id.vn/reset-password` returns the new frontend bundle
-- Clicking a verification link shows a success state instead of `Failed to fetch`
-- Production bundle contains:
-  - `verify-email`
-  - `reset-password`
-  - `/api/v1`
-
-## Deploy commands used
+From `D:\H-smart UI`:
 
 ```bash
-git push origin develop
-vercel --prod --yes
-vercel inspect h-smart-ui.vercel.app
-vercel env ls
+npm run build
 ```
 
-## Notes
+If `dist` is locked on Windows, build to a temporary folder instead:
 
-- This file intentionally does not store temporary tokens such as `VERCEL_OIDC_TOKEN`.
-- The `Failed to fetch` issue on verification/reset routes was fixed by moving the browser-facing API base to same-origin `/api/v1` and letting Vercel rewrite to the Funnel URL.
+```bash
+npx vite build --outDir dist-deploy
+```
+
+### Upload to VPS
+
+Use the built static output and copy it to `/var/www/h-smart-ui`:
+
+```bash
+scp -i ~/.ssh/id_rsa_hsmart_new -r dist/* \
+  hoangchithanh23072003@100.110.169.59:/var/www/h-smart-ui/
+```
+
+If you built to `dist-deploy`, upload that folder instead of `dist`.
+
+### Reload nginx if needed
+
+```bash
+ssh -i ~/.ssh/id_rsa_hsmart_new hoangchithanh23072003@100.110.169.59 \
+  "sudo systemctl reload nginx"
+```
+
+## 4) Verify after deploy
+
+Minimum checks:
+
+- `https://hsmart.thatcherdev.id.vn` loads
+- `index.html` on the VPS points to the new hashed JS/CSS bundle
+- the served bundle no longer contains old hostnames like `tail0e1958.ts.net`
+- browser requests go to same-origin `/api/v1/*`
+- `/admin` opens normally after login
+
+Useful live checks:
+
+```bash
+ssh -i ~/.ssh/id_rsa_hsmart_new hoangchithanh23072003@100.110.169.59 \
+  "ls -1 /var/www/h-smart-ui/assets | tail"
+
+ssh -i ~/.ssh/id_rsa_hsmart_new hoangchithanh23072003@100.110.169.59 \
+  "curl -I http://127.0.0.1:8000/health"
+```
+
+## 5) Notes that matter
+
+- The old VPS `root@100.66.247.41` is historical only.
+- Production now uses the new VPS at `100.110.169.59`.
+- The frontend admin dashboard charts now intentionally render a zero series when `system_ledger` is empty, so an empty card is no longer expected.
+- If the UI still looks stale after deploy, check browser cache and confirm the public `index.html` really changed.
+
+## 6) Quick SSH reminder
+
+```bash
+ssh -i ~/.ssh/id_rsa_hsmart_new hoangchithanh23072003@100.110.169.59
+```
+
+Then:
+
+```bash
+cd /home/hoangchithanh23072003/h-smart
+docker compose -f docker-compose.yml ps
+```
+
+## 7) Safe rollback mindset
+
+- Keep `.env` on the VPS unchanged unless you are intentionally rotating config.
+- Do not publish database ports.
+- Back up before any risky sync or overwrite.
+- Prefer verifying the live `index.html` and bundle hash instead of assuming a local build is already live.
